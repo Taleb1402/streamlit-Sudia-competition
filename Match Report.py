@@ -1117,7 +1117,8 @@ def ar(text):
 # ✅ تحميل الملف
 file_path = r"C:\Users\aalturaidi\OneDrive - Ittihad Club Company\Desktop\merged_events_with_competition_all.csv"
 if not os.path.exists(file_path):
-    st.error("⚠️ لم يتم العثور على ملف البيانات في المسار المحدد.")
+    st.error("⚠️ لم يتم العثور على ملف البيانات في المسار المحدد. تأكد من صحة المسار أو وجود الملف.")
+
     st.stop()
 
 df = pd.read_csv(file_path)
@@ -1216,3 +1217,4 @@ if selected_match:
         st.markdown(ai_matrix_comment)
     except Exception as e:
         st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
+
