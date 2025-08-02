@@ -1,3 +1,10 @@
 streamlit
-matplotlib
 pandas
+numpy
+matplotlib
+seaborn
+mplsoccer
+arabic-reshaper
+python-bidi
+Pillow
+scipy
