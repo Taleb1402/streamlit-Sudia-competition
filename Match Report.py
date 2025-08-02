@@ -1111,22 +1111,34 @@ from bidi.algorithm import get_display
 
 
 # ✅ تعريب النصوص
+import streamlit as st
+import pandas as pd
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+# ✅ تعريب النصوص
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
-# ✅ تحميل الملف
+# ✅ تحميل الملف من المستخدم
 uploaded_file = st.file_uploader("🔼 ارفع ملف البيانات (CSV)", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
     df.columns = df.columns.str.strip()
+
+    # ✅ تأكد من وجود عمود الأهداف العكسية
     if 'type_value_Own goal' not in df.columns:
-    df['type_value_Own goal'] = 0
+        df['type_value_Own goal'] = 0
 
     st.success("✅ تم تحميل البيانات بنجاح.")
+    
+    # يمكنك الآن البدء في تحليلك باستخدام df
+
 else:
     st.warning("⚠️ الرجاء رفع ملف CSV لبدء التحليل.")
     st.stop()
+
 
 # ✅ تأكد من وجود عمود البطولة
 if 'competition' not in df.columns:
@@ -1221,6 +1233,7 @@ if selected_match:
         st.markdown(ai_matrix_comment)
     except Exception as e:
         st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
+
 
 
 
