@@ -1239,10 +1239,17 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 
 # ✅ دالة لتنسيق النص العربي (تُستخدم فقط للنص العربي الكامل)
+import os
+import pandas as pd
+import streamlit as st
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+# ✅ تعريب النصوص
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
-# ✅ إدخال مسار الملف
+# ✅ إدخال مسار الملف (عدّل المسار حسب موقعك)
 file_path = r"C:\Users\aalturaidi\Downloads\merged_event_data_J2_with_WEEK1_WEEK2.csv"
 
 try:
@@ -1257,23 +1264,18 @@ try:
             df_all['type_value_Own goal'] = 0
 
         df = df_all.copy()
+
         # ✅ استكمال اسم اللاعب في الحملات إذا كان ناقصًا
         for col in ['name', 'shortName']:
             if col in df.columns:
-               df.loc[
-            (df['type'] == 'Carry') & 
-            (df[col].isna()) & 
-            (df['playerId'] == df['playerId'].shift(-1)), 
-            col
-        ] = df[col].shift(-1)
+                df.loc[
+                    (df['type'] == 'Carry') &
+                    (df[col].isna()) &
+                    (df['playerId'] == df['playerId'].shift(-1)),
+                    col
+                ] = df[col].shift(-1)
 
-
-
-
-
-
-
-        # ✅ التحقق من وجود أعمدة الجولات
+        # ✅ استخراج أعمدة الجولات
         week_columns = [col for col in df.columns if col.lower().startswith("week")]
         if week_columns:
             for col in week_columns:
@@ -1283,27 +1285,43 @@ try:
             selected_week_col = st.selectbox("🗓️ اختر الجولة", week_columns, key="week_selectbox")
             df = df[df[selected_week_col] == 1]
 
+            # ✅ تحديد المباريات المتاحة
             if {'teamName', 'oppositionTeamName'}.issubset(df.columns):
                 df['team_vs'] = df.apply(
                     lambda row: " vs ".join(sorted([str(row['teamName']), str(row['oppositionTeamName'])])), axis=1
                 )
                 matches = sorted(df['team_vs'].dropna().unique().tolist())
 
-                if matches:
-                    selected_match = st.selectbox("⚽ اختر المواجهة (الفريق ضد الفريق)", matches, key="match_selectbox")
+                selected_match = st.selectbox("⚽ اختر المواجهة (الفريق ضد الفريق)", matches, key="match_selectbox")
 
-                    if selected_match:
-                        df_match = df[df['team_vs'] == selected_match].copy()
-                        hteam, ateam = selected_match.split(" vs ")
+                if selected_match:
+                    df_match = df[df['team_vs'] == selected_match].copy()
 
-                        # ✅ عرض عدد الأهداف بدون عكس
-                        hgoal_count = len(df_match[(df_match['teamName'] == hteam) & (df_match['type'] == 'Goal')])
-                        agoal_count = len(df_match[(df_match['teamName'] == ateam) & (df_match['type'] == 'Goal')])
+                    # ✅ تحديد الفريقين
+                    hteam, ateam = selected_match.split(" vs ")
 
-                        st.info(f"{hteam} - عدد الأهداف: {hgoal_count}")
-                        st.info(f"{ateam} - عدد الأهداف: {agoal_count}")
+                    # ✅ محاولة تحديد الفريق المستضيف من عمود h_a إن وُجد
+                    if 'h_a' in df_match.columns:
+                        home_away_df = df_match.head(2)[['teamName', 'h_a']].sort_values(by='h_a').reset_index(drop=True)
+                        if len(home_away_df) >= 2:
+                            hteam = home_away_df['teamName'][1]
+                            ateam = home_away_df['teamName'][0]
 
-                        # ✅ اختيار الفريق للتحليل
+                    # ✅ حساب الأهداف العادية
+                    hgoal_count = len(df_match[(df_match['teamName'] == hteam) & (df_match['type'] == 'Goal')])
+                    agoal_count = len(df_match[(df_match['teamName'] == ateam) & (df_match['type'] == 'Goal')])
+
+                    st.info(f"🏠 {hteam} - عدد الأهداف: {hgoal_count}")
+                    st.info(f"🚌 {ateam} - عدد الأهداف: {agoal_count}")
+
+                    # ✅ حفظ البيانات في session_state
+                    st.session_state['hteam'] = hteam
+                    st.session_state['ateam'] = ateam
+                    st.session_state['df'] = df_match
+
+                    # ✅ اختيار الفريق للتحليل
+                    selected_team = st.selectbox("🎯 اختر الفريق الذي ترغب في عرض تحليله", [hteam, ateam], key="select_team_analysis")
+                    st.success(f"✅ جاري عرض التحليلات لفريق: {selected_team}")
 
 except Exception as e:
     st.error(f"❌ حدث خطأ أثناء التحميل أو التحليل: {e}")
@@ -1634,4 +1652,5 @@ with st.expander(" الخريطة الحرارية وتمريرات اللاعب
               
 
             #
+
 
