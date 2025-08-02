@@ -115,9 +115,7 @@ st.markdown("""
 
 def plotting_match_stats(ax, df, hteamName, ateamName, col1, col2, bg_color, line_color):
     import matplotlib.patheffects as path_effects
-    from mplsoccer import Pitch
-    import arabic_reshaper
-    from bidi.algorithm import get_display
+    
 
     # دالة تعريب
     def ar(text):
@@ -485,21 +483,13 @@ def generate_and_plot_momentum(df, hteamName, ateamName, col1, col2, bg_color, l
     return plot_Momentum
  
 
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from mplsoccer import Pitch
-import arabic_reshaper
-from bidi.algorithm import get_display
+
 
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
-import matplotlib.pyplot as plt
-from mplsoccer import Pitch
+
 from sklearn.cluster import KMeans
-import arabic_reshaper
-from bidi.algorithm import get_display
 
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
@@ -547,13 +537,7 @@ def draw_kmeans_pass_clusters_single_team(df, teamName):
     plt.tight_layout()
 
     return fig
-from mplsoccer import Pitch
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import arabic_reshaper
-from bidi.algorithm import get_display
+
 
 
 def ar(text):
@@ -634,21 +618,10 @@ def draw_pass_start_end_density_map(df, team_name, start_cmap='Blues', end_cmap=
 
 
 from mplsoccer import VerticalPitch
-import matplotlib.pyplot as plt
-import urllib.request
-from PIL import Image
-import io
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import arabic_reshaper
-from bidi.algorithm import get_display
+
 
 def draw_xt_heatmaps_top_players(df_match, team_name, base_color='#0099ff', title_fontsize=16):
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import LinearSegmentedColormap
-    from mplsoccer import VerticalPitch
-    import arabic_reshaper
-    from bidi.algorithm import get_display
-
+    
     def ar(text):
         return get_display(arabic_reshaper.reshape(text))
 
@@ -705,77 +678,15 @@ def draw_xt_heatmaps_top_players(df_match, team_name, base_color='#0099ff', titl
     plt.subplots_adjust(top=0.90)
     return fig
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-from mplsoccer import Pitch, VerticalPitch
-import numpy as np
 
-from mplsoccer import Pitch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import numpy as np
-
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.patches import Rectangle
-from mplsoccer import Pitch
-
-import numpy as np
-from matplotlib.patches import Rectangle
-from mplsoccer import Pitch
-
-from matplotlib.patches import Rectangle
-import matplotlib.pyplot as plt
-from mplsoccer import Pitch
-import numpy as np
-
-from matplotlib.patches import Rectangle
-import matplotlib.pyplot as plt
-from mplsoccer import Pitch
-import numpy as np
-import arabic_reshaper
-from bidi.algorithm import get_display
-
-# ✅ دالة لتعريب النص العربي
-from matplotlib.colors import Normalize
-from matplotlib.cm import ScalarMappable
-
-import numpy as np
-from matplotlib.patches import Rectangle
-from matplotlib import pyplot as plt
-from mplsoccer import Pitch
-import arabic_reshaper
-from bidi.algorithm import get_display
 
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
-from mplsoccer import Pitch
-import numpy as np
-import matplotlib.pyplot as plt
+
 from matplotlib.patches import Rectangle
-from bidi.algorithm import get_display
-import arabic_reshaper
 
-def ar(text):
-    return get_display(arabic_reshaper.reshape(text))
 
-from mplsoccer import Pitch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import numpy as np
-import arabic_reshaper
-from bidi.algorithm import get_display
-
-def ar(text):
-    return get_display(arabic_reshaper.reshape(text))
-
-from mplsoccer import Pitch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import numpy as np
-import arabic_reshaper
-from bidi.algorithm import get_display
 
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
@@ -908,17 +819,10 @@ def draw_xt_pass_and_carry_map(df, player_name, team_name, base_color='#0099ff',
     return fig
 
 
-import numpy as np
-import pandas as pd
-from mplsoccer import Pitch
-import matplotlib.pyplot as plt
+
 from matplotlib.colors import to_rgba
 
-import numpy as np
-import pandas as pd
-from mplsoccer import Pitch
-import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgba
+
 
 def draw_static_passing_network(df_match, team_name, opponent_name,
                                 bg_color='white', line_color='gray',
@@ -1186,156 +1090,87 @@ def draw_pass_matrix_arabic(df_match, team1, color_low='#b5ffe1', color_high='#f
     return fig, comment
     
 
-    
-
-
-
-# واجهة التطبيق
-# واجهة التطبيق في Streamlit
-# ✅ خيارات الألوان للمصفوفة (يجب أن تكون قبل استدعاء الدالة)
-
-
-# ✅ رفع الملف وتحديد الفريق
-
-     
-     # ✅ خيارات الألوان للمصفوفة (يجب أن تكون قبل استدعاء الدالة)
-
-
-
-# ✅ خيارات الألوان للمصفوفة (يجب أن تكون قبل استدعاء الدالة)
-
-
-
-# ✅ مشروع تحليل المباراة باستخدام Streamlit
-
-
-
+# ✅ استيراد المكتبات
+import os
+import pandas as pd
+import numpy as np
+import streamlit as st
+import matplotlib.pyplot as plt
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 # ✅ دالة تعريب النصوص
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
 import streamlit as st
-import arabic_reshaper
-from bidi.algorithm import get_display
- # ✅ تحميل الصورة
-#img_path = r"C:\Users\aalturaidi\Downloads\SAVEN.jpeg"
-#img = Image.open(img_path)
-
-    # ✅ تحويل الصورة إلى array
-#img_arr = mpimg.imread(img_path)
-# ✅ دالة تعريب النصوص
-import os
-import pandas as pd
-import streamlit as st
-from bidi.algorithm import get_display
-import arabic_reshaper
-
-# ✅ دالة لتنسيق النص العربي
-import os
-import pandas as pd
-import streamlit as st
-import os
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# ✅ دالة لتنسيق النص العربي (تُستخدم فقط للنص العربي الكامل)
-import os
-import pandas as pd
-import streamlit as st
-import arabic_reshaper
-from bidi.algorithm import get_display
+# ✅ استيراد الدوال التحليلية (تأكد أنك استوردتها من ملف functions أو معرفها مسبقًا)
+
 
 # ✅ تعريب النصوص
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
-# ✅ إدخال مسار الملف (عدّل المسار حسب موقعك)
-file_path = r"C:\Users\aalturaidi\Downloads\merged_event_data_J2_with_WEEK1_WEEK2.csv"
+# ✅ تحميل الملف
+file_path = r"C:\Users\aalturaidi\OneDrive - Ittihad Club Company\Desktop\merged_events_with_competition_all.csv"
+if not os.path.exists(file_path):
+    st.error("⚠️ لم يتم العثور على ملف البيانات في المسار المحدد.")
+    st.stop()
 
-try:
-    if os.path.exists(file_path):
-        df_all = pd.read_csv(file_path)
-        df_all.columns = df_all.columns.str.strip()
+df = pd.read_csv(file_path)
+df.columns = df.columns.str.strip()
 
-        # ✅ معالجة الأهداف العكسية
-        if 'type_value_Own goal' in df_all.columns:
-            df_all['type_value_Own goal'] = pd.to_numeric(df_all['type_value_Own goal'], errors='coerce').fillna(0)
-        else:
-            df_all['type_value_Own goal'] = 0
+# ✅ تأكد من وجود عمود البطولة
+if 'competition' not in df.columns:
+    df['competition'] = st.text_input("أدخل اسم البطولة يدويًا:", "")
 
-        df = df_all.copy()
+# ✅ إنشاء عمود team_vs
+if 'team_vs' not in df.columns:
+    if {'teamName', 'oppositionTeamName'}.issubset(df.columns):
+        df['team_vs'] = df.apply(
+            lambda row: " vs ".join(sorted([str(row['teamName']), str(row['oppositionTeamName'])])), axis=1
+        )
+    else:
+        st.error("⚠️ الملف لا يحتوي على أعمدة الفريقين.")
+        st.stop()
 
-        # ✅ استكمال اسم اللاعب في الحملات إذا كان ناقصًا
-        for col in ['name', 'shortName']:
-            if col in df.columns:
-                df.loc[
-                    (df['type'] == 'Carry') &
-                    (df[col].isna()) &
-                    (df['playerId'] == df['playerId'].shift(-1)),
-                    col
-                ] = df[col].shift(-1)
+# ✅ اختيار البطولة
+competitions = sorted(df['competition'].dropna().unique().tolist())
+selected_competition = st.selectbox("🏆 اختر البطولة", competitions)
+df = df[df['competition'] == selected_competition].copy()
 
-        # ✅ استخراج أعمدة الجولات
-        week_columns = [col for col in df.columns if col.lower().startswith("week")]
-        if week_columns:
-            for col in week_columns:
-                df[col] = df[col].replace('WEEK1', 1)
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+# ✅ اختيار الجولة
+week_cols = [col for col in df.columns if col.lower().startswith("week")]
+selected_week = st.selectbox("📅 اختر الجولة", week_cols)
+df = df[df[selected_week] == True].copy()
 
-            selected_week_col = st.selectbox("🗓️ اختر الجولة", week_columns, key="week_selectbox")
-            df = df[df[selected_week_col] == 1]
+# ✅ اختيار المباراة
+matches = sorted(df['team_vs'].unique().tolist())
+selected_match = st.selectbox("🎯 اختر المباراة", matches)
 
-            # ✅ تحديد المباريات المتاحة
-            if {'teamName', 'oppositionTeamName'}.issubset(df.columns):
-                df['team_vs'] = df.apply(
-                    lambda row: " vs ".join(sorted([str(row['teamName']), str(row['oppositionTeamName'])])), axis=1
-                )
-                matches = sorted(df['team_vs'].dropna().unique().tolist())
+# ✅ عند اختيار المباراة
+if selected_match:
+    hteam, ateam = selected_match.split(" vs ")
+    st.session_state.hteam = hteam
+    st.session_state.ateam = ateam
+    df_match = df[df['team_vs'] == selected_match].copy()
 
-                selected_match = st.selectbox("⚽ اختر المواجهة (الفريق ضد الفريق)", matches, key="match_selectbox")
+    # ✅ أسماء اللاعبين
+    hpnames = df_match[df_match['teamName'] == hteam]['name'].dropna().unique().tolist()
+    apnames = df_match[df_match['teamName'] == ateam]['name'].dropna().unique().tolist()
 
-                if selected_match:
-                    df_match = df[df['team_vs'] == selected_match].copy()
+    # ✅ خريطة الإحصائيات + التسديدات + الزخم + خريطة المرمى
+    with st.expander("⚽️ خريطة التسديدات وتحليل الزخم للفريقين", expanded=True):
+        col1 = st.color_picker("🎨 لون الفريق الأول", '#0099ff', key="color1")
+        col2 = st.color_picker("🎨 لون الفريق الثاني", '#ff4d4d', key="color2")
+        bg_color = st.color_picker("🎨 لون الخلفية", "#F2F3F3", key="bg_color")
+        line_color = st.color_picker("🎨 لون الخط", '#000000', key="line_color")
 
-                    # ✅ تحديد الفريقين
-                    hteam, ateam = selected_match.split(" vs ")
-
-                    # ✅ محاولة تحديد الفريق المستضيف من عمود h_a إن وُجد
-                    if 'h_a' in df_match.columns:
-                        home_away_df = df_match.head(2)[['teamName', 'h_a']].sort_values(by='h_a').reset_index(drop=True)
-                        if len(home_away_df) >= 2:
-                            hteam = home_away_df['teamName'][1]
-                            ateam = home_away_df['teamName'][0]
-
-                    # ✅ حساب الأهداف العادية
-                    hgoal_count = len(df_match[(df_match['teamName'] == hteam) & (df_match['type'] == 'Goal')])
-                    agoal_count = len(df_match[(df_match['teamName'] == ateam) & (df_match['type'] == 'Goal')])
-
-                    st.info(f"🏠 {hteam} - عدد الأهداف: {hgoal_count}")
-                    st.info(f"🚌 {ateam} - عدد الأهداف: {agoal_count}")
-
-                    # ✅ حفظ البيانات في session_state
-                    st.session_state['hteam'] = hteam
-                    st.session_state['ateam'] = ateam
-                    st.session_state['df'] = df_match
-
-                    # ✅ اختيار الفريق للتحليل
-                    selected_team = st.selectbox("🎯 اختر الفريق الذي ترغب في عرض تحليله", [hteam, ateam], key="select_team_analysis")
-                    st.success(f"✅ جاري عرض التحليلات لفريق: {selected_team}")
-
-except Exception as e:
-    st.error(f"❌ حدث خطأ أثناء التحميل أو التحليل: {e}")
-
-# ✅ خريطة الإحصائيات + التسديدات + الزخم
-with st.expander("⚽️ خريطة التسديدات وتحليل الزخم للفريقين", expanded=True):
-    col1 = st.color_picker("🎨 لون الفريق الأول", '#0099ff')
-    col2 = st.color_picker("🎨 لون الفريق الثاني", '#ff4d4d')
-    bg_color = st.color_picker("🎨 لون الخلفية", "#F2F3F3")
-    line_color = st.color_picker("🎨 لون الخط", '#000000')
-
-    if st.button("📊 عرض خريطة الاحصائيات والتسديدات وتحليل الزخم للفريقين"):
         try:
-            # ✅ خريطة الإحصائيات العامة
+            # ✅ الإحصائيات
             fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
             ax.set_facecolor('white')
             plotting_match_stats(ax, df_match, hteam, ateam, col1, col2, bg_color, line_color)
@@ -1345,14 +1180,14 @@ with st.expander("⚽️ خريطة التسديدات وتحليل الزخم �
             fig = draw_shotmap_both_teams(df_match, hteam, ateam)
             st.pyplot(fig)
 
-            # ✅ خريطة المرمى وتحليل فرص التسجيل
+            # ✅ خريطة المرمى
             st.subheader("🥅 خريطة المرمى وتحليل فرص التسجيل")
             Shotsdf = df_match[df_match['type'].isin(['Goal', 'SavedShot', 'ShotOnPost', 'MissedShots'])].reset_index(drop=True)
             fig2, ax2 = plt.subplots(figsize=(14, 8), facecolor=bg_color)
             plot_goalPost(ax2, Shotsdf, hteam, ateam, col1, col2, bg_color, line_color)
             st.pyplot(fig2)
 
-            # ✅ تحليل الزخم
+            # ✅ الزخم
             st.subheader("📈 تحليل الزخم (Momentum) خلال المباراة")
             fig3, ax = plt.subplots(figsize=(12, 5), facecolor=bg_color)
             plot_momentum = generate_and_plot_momentum(df_match, hteam, ateam, col1, col2, bg_color, line_color)
@@ -1362,295 +1197,22 @@ with st.expander("⚽️ خريطة التسديدات وتحليل الزخم �
         except Exception as e:
             st.error(f"❌ حدث خطأ أثناء عرض التحليلات: {e}")
 
-# ✅ خريطة تمريرات KMeans لفريق واحد + الشرح
-with st.expander("🧠 خريطة تمريرات KMeans لفريق واحد", expanded=True):
-    selected_team_kmeans = st.selectbox("🎯 اختر الفريق لتحليل تمريراته", [hteam, ateam])
-    try:
-        fig_kmeans = draw_kmeans_pass_clusters_single_team(df_match, selected_team_kmeans)
-        st.pyplot(fig_kmeans)
-
-        # ✅ الشرح أسفل الخريطة
-        st.markdown("""
-<div dir="rtl" style="text-align: right;">
-<h3>🎯 ما هو تحليل KMeans في كرة القدم؟</h3>
-
-<p>
-تحليل <b>KMeans</b> هو تقنية من تقنيات <b>التعلم الآلي (Machine Learning)</b> تُستخدم لتقسيم التمريرات إلى مجموعات (تجمعات) بناءً على تشابه الأنماط، مثل اتجاه التمريرة، بدايتها، ونهايتها.
-</p>
-
-<h4>🔹 الهدف:</h4>
-<p>تحديد الأنماط المتكررة في طريقة لعب الفريق، مثل:</p>
-<ul>
-<li>تمريرات بناء اللعب من الخلف.</li>
-<li>تمريرات التقدم عبر العمق.</li>
-<li>الكرات العرضية من الأطراف.</li>
-<li>التمريرات في مناطق الضغط أو التمريرات المنظمة في الوسط.</li>
-</ul>
-
-<h4>🔹 كيف يعمل؟</h4>
-<ul>
-<li>يتم إدخال مواقع البداية والنهاية لكل تمريرة.</li>
-<li>يقوم <b>KMeans</b> بتجميع التمريرات المتشابهة في السلوك والموقع إلى عدد من التجمعات (<i>Clusters</i>).</li>
-<li>يتم عرض كل تجمع بلون مختلف على الخريطة، مما يتيح رؤية الأنماط بوضوح.</li>
-</ul>
-
-<h4>🧠 هذا النوع من التحليل يُستخدم من قبل الكشافين والمدربين لفهم:</h4>
-<ul>
-<li>كيف يبني الفريق الهجمة؟</li>
-<li>ما هي أكثر أنواع التمريرات استخدامًا؟</li>
-<li>هل يوجد تنوع أو نمط تكراري في اللعب؟</li>
-</ul>
-</div>
-""", unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"❌ حدث خطأ أثناء عرض خريطة KMeans: {e}")
-
-
-
-
-with st.expander("📍 مقارنة بين بداية ونهاية التمريرات", expanded=True):
-    # ❌ استبعاد جميع الفرق – نستخدم فقط hteam و ateam
-    team_names = [hteam, ateam]
-    selected_team = st.selectbox("اختر الفريق", team_names, key="density_team")
-
-    start_cmap = st.color_picker("🎨 لون بداية التمريرات", '#1f77b4', key="start_color")
-    end_cmap = st.color_picker("🎨 لون نهاية التمريرات", '#d62728', key="end_color")
+    # ✅ شبكة التمريرات والمصفوفة
+    st.markdown("## 🧠 شبكة التمريرات")
+    selected_team = st.selectbox("اختر الفريق الذي ترغب في عرض تحليله", [hteam, ateam])
 
     try:
-        fig = draw_pass_start_end_density_map(df, selected_team, start_cmap, end_cmap)
-        st.pyplot(fig)
+        opponent_team = hteam if selected_team == ateam else ateam
+        fig_net, ai_net_comment = draw_static_passing_network(df_match, selected_team, opponent_team)
+        st.pyplot(fig_net)
+        st.markdown(ai_net_comment)
     except Exception as e:
-        st.error(f"❌ حدث خطأ: {e}")
+        st.error(f"❌ خطأ في شبكة التمريرات: {e}")
 
-
-
-
-
-
-
-
-
-
-
-# ✅ خريطة كثافة بداية ونهاية التمريرات
-with st.expander("🔥 خريطة xT لأفضل لاعبي الفريق", expanded=True):
-    team_name = st.selectbox("اختر الفريق", [hteam, ateam], key="xt_team_select")
-    xt_color = st.color_picker("🎨 اختر لون خريطة xT", '#0099ff', key="xt_color_picker")
-
+    st.markdown("## 🧩 مصفوفة التمريرات")
     try:
-        fig = draw_xt_heatmaps_top_players(df_match, team_name, base_color=xt_color)
-        st.pyplot(fig)
-
-        # ✅ الشرح أسفل الخريطة
-        st.markdown("""
-<div dir="rtl" style="text-align: right;">
-<h3>📊 ما هو تحليل xT (Expected Threat) في كرة القدم؟</h3>
-
-<p>
-تحليل <b>xT</b> هو أحد تقنيات تحليل البيانات المتقدمة في كرة القدم، ويُستخدم لقياس <b>مدى خطورة التمريرات أو الحملات بالكرة</b> من حيث احتمالية أن تؤدي إلى هدف.
-</p>
-
-<h4>🔹 ما الذي يعنيه xT؟</h4>
-<ul>
-<li>هو مقياس يوضح مقدار التهديد الذي تُشكّله التمريرة أو اللمسة، حتى لو لم تؤدِّ مباشرةً إلى تسديدة.</li>
-<li>يعتمد على <b>الموقع الذي تبدأ منه التمريرة أو الحركة</b> و<b>الموقع الذي تنتهي إليه</b>.</li>
-</ul>
-
-<h4>🔹 لماذا يُعد هذا مهمًا؟</h4>
-<ul>
-<li>يساعد المدربين والمحللين في التعرف على <b>اللاعبين الأكثر تأثيرًا في بناء الفرص</b>، حتى إن لم يصنعوا أهدافًا مباشرة.</li>
-<li>يوضح <b>الأنماط الخطرة</b> في أسلوب لعب الفريق.</li>
-</ul>
-
-<h4>🔍 في هذه الخريطة:</h4>
-<ul>
-<li>يتم عرض أكثر 6 لاعبين في الفريق من حيث مجموع xT.</li>
-<li>يتم حساب وتلوين الكثافة حسب مواقع لمساتهم وتمريراتهم التي تُشكل تهديدًا.</li>
-<li>كل خريطة تُبرز مساهمة كل لاعب في صناعة الخطورة.</li>
-</ul>
-
-<h4>⚽️ هذا التحليل مهم جدًا للكشافين ومدربي الفرق لفهم:</h4>
-<ul>
-<li>من هم اللاعبين الأكثر تأثيرًا؟</li>
-<li>ما هي المناطق التي يصنع منها الفريق الخطورة؟</li>
-<li>هل يوجد تكرار في نمط التهديد أو تنوّع في اللعب؟</li>
-</ul>
-<hr>
-</div>
-""", unsafe_allow_html=True)
-
-        
+        fig_matrix, ai_matrix_comment = draw_pass_matrix_arabic(df_match, selected_team)
+        st.pyplot(fig_matrix)
+        st.markdown(ai_matrix_comment)
     except Exception as e:
-        st.error(f"❌ حدث خطأ: {e}")
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-with st.expander("📍 خريطة التهديد xT من التمريرات والحملات", expanded=True):
-
-    selected_team = st.selectbox("اختر الفريق", df_match['teamName'].dropna().unique(), key="xt_team")
-
-    # ✅ تصفية اللاعبين حسب الفريق المحدد
-    team_players = df_match[df_match['teamName'] == selected_team]['shortName'].dropna().unique()
-    selected_player = st.selectbox("اختر اللاعب", team_players, key="xt_player")
-
-    xt_color = st.color_picker("🎨 لون الخطوط", '#0099ff', key="xt_color")
-
-    try:
-        # ⚽️ تحديد الفريقين
-        hteam = df_match['teamName'].iloc[0]
-        ateam = df_match['oppositionTeamName'].iloc[0]
-
-        # ✅ عكس اتجاه الفريق الضيف فقط
-        reverse = (selected_team == hteam)
-
-        # رسم الخريطة
-        fig = draw_xt_pass_and_carry_map(df_match, selected_player, selected_team, base_color=xt_color, reverse=reverse)
-        st.pyplot(fig)
-
-        st.markdown("""
-<div dir="rtl" style="text-align: right;">
-<h3>💡 ما هي خريطة xT؟</h3>
-<p>
-تمثل هذه الخريطة التهديد المتوقع (Expected Threat - xT) الناتج من تمريرات أو حملات اللاعب.<br>
-كل سهم يعكس حركة الكرة من موقع إلى آخر في الملعب، ويُظهر فوقه مقدار التغيير في التهديد الناتج عن هذه الحركة.
-</p>
-
-<h4>🔢 <b>لماذا نستخدم المعادلة:</b></h4>
-<p>
-نحسب التهديد الناتج من التمريرة أو الحملة باستخدام المعادلة:<br>
-<b>xT = xT(النقطة النهائية) - xT(النقطة الابتدائية)</b>
-</p>
-
-<h4>📌 <b>السبب:</b></h4>
-<p>
-هذه المعادلة تقيس "الفرق في الخطورة" بين المكان الذي بدأت فيه الكرة والمكان الذي انتهت إليه.<br>
-فإذا زادت قيمة xT بعد التمريرة أو الحملة، فهذا يعني أن اللاعب <b>اقترب من منطقة أكثر تهديدًا</b> على المرمى.
-</p>
-
-<p>
-🟢 <b>قيمة موجبة:</b> تعني أن الحركة <b>أنتجت تهديدًا</b>.<br>
-🔴 <b>قيمة سالبة:</b> تعني أن اللاعب <b>تراجع أو ابتعد عن مناطق التهديد</b> (غالبًا ما يتم تجاهلها أو إظهارها بلون رمادي).
-</p>
-
-<p>
-🎯 تساعد هذه الخريطة المدربين والمحللين على تحديد الأماكن التي ينجح فيها اللاعب في <b>زيادة التهديد على الخصم</b>.
-</p>
-</div>
-""", unsafe_allow_html=True)
-
-
-    except Exception as e:
-        st.error(f"❌ حدث خطأ: {e}")
-
-
-# ✅ شبكة التمريرات وتحليل المصفوفة لفريق واحد
-with st.expander(" تحليل تمريرات شبكة التمريرات لفريق محدد"):
-    selected_team = st.selectbox(" اختر الفريق الذي ترغب في عرض تحليله", [hteam, ateam])
-    matrix_color_low = st.color_picker("🔵 لون مصفوفة التمريرات (قيمة منخفضة)", '#b5ffe1')
-    matrix_color_high = st.color_picker("🔴 لون مصفوفة التمريرات (قيمة مرتفعة)", '#ff8fab')
-    line_color = st.color_picker("⚫ لون التمريرات العادية", '#808080')
-    highlight_color = st.color_picker("🟡 لون التمريرات البارزة", '#ff0000')
-    node_edge_color = st.color_picker("🟢 لون حواف الدوائر (اللاعبين)", '#00ccff')
-    opponent = ateam if selected_team == hteam else hteam
-
-    st.markdown(f"## 📊 تحليل المصفوفة: {selected_team}")
-    fig_matrix, ai_comment = draw_pass_matrix_arabic(df_match, selected_team, matrix_color_low, matrix_color_high)
-    st.pyplot(fig_matrix)
-    st.markdown(ai_comment, unsafe_allow_html=True)
-
-    st.markdown(f"##  شبكة التمريرات: {selected_team}")
-    fig_net, ai_comment_net = draw_static_passing_network(
-        df_match, selected_team, opponent,
-        line_color=line_color,
-        highlight_color=highlight_color,
-        node_edge_color=node_edge_color
-    )
-    st.pyplot(fig_net)
-    st.markdown(ai_comment_net, unsafe_allow_html=True)
-
-
-with st.expander(" الخريطة الحرارية وتمريرات اللاعب المحدد", expanded=True):
-    player_options = df_match[df_match['teamName'] == selected_team]['shortName'].dropna().unique().tolist()
-    selected_player = st.selectbox("اختر اللاعب", player_options, key="heatmap_pass_player")
-
-    if st.button("📊 عرض الخريطة الحرارية وتمريرات اللاعب المحدد"):
-        player_data = df_match[
-            (df_match['shortName'] == selected_player) & df_match['x'].notnull() & df_match['y'].notnull()
-        ]
-
-        if player_data.empty:
-            st.warning(f"⚠️ لا توجد تحركات مسجلة للاعب: {selected_player}")
-        else:
-            # رسم Heatmap
-            pitch = Pitch(pitch_type='uefa', pitch_color='#22312b', line_color='#efefef', line_zorder=2)
-            fig, ax = pitch.draw(figsize=(10, 7))
-            fig.set_facecolor('#22312b')
-            ax.annotate(xy=(0.42, 0.001), xytext=(0.60, 0.001), text='',
-                        arrowprops=dict(arrowstyle='<|-, head_length=0.2, head_width=0.12',
-                                        linewidth=0.7, color='w', fc='#f2f2f2', zorder=4),
-                        xycoords='axes fraction')
-            ax.annotate(xy=(0.44, -0.031), text='Attacking direction', xycoords='axes fraction',
-                        size=8.2, color='w', weight="bold")
-            bin_statistic = pitch.bin_statistic(player_data.x, player_data.y, statistic='count', bins=(25, 25))
-            bin_statistic['statistic'] = gaussian_filter(bin_statistic['statistic'], sigma=1.5)
-            heatmap = pitch.heatmap(bin_statistic, ax=ax, cmap='hot', edgecolors='#22312b')
-            cbar = fig.colorbar(heatmap, ax=ax, shrink=0.6)
-            cbar.outline.set_edgecolor('#efefef')
-            cbar.ax.yaxis.set_tick_params(color='#efefef')
-            plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='#efefef')
-            title = f"الخريطة الحرارية وتحليل تمريرات {selected_player}"
-            ax.set_title(ar(title), fontsize=16, color='white', weight='bold')
-            st.pyplot(fig)
-
-            # خريطة تمريرات اللاعب
-            st.markdown("📌 *خريطة تمريرات اللاعب*")
-            player_passes = player_data[player_data['type'] == 'Pass']
-            success = player_passes[player_passes['outcomeType'] == 'Successful']
-            fail = player_passes[player_passes['outcomeType'] == 'Unsuccessful']
-            label_success = ar("✅ تمريرات ناجحة")
-            label_fail = ar("❌ تمريرات خاطئة")
-
-            pitch = Pitch(pitch_type='uefa', pitch_color='white', line_color='black', line_zorder=2)
-            fig2, ax2 = pitch.draw(figsize=(10, 7))
-            ax2.annotate(xy=(0.42, 0.001), xytext=(0.60, 0.001), text='',
-                         arrowprops=dict(arrowstyle='<|-, head_length=0.2, head_width=0.12',
-                                         linewidth=0.7, color='black', fc='black', zorder=4),
-                         xycoords='axes fraction')
-            ax2.annotate(xy=(0.44, -0.015), text='Attacking direction', xycoords='axes fraction',
-                         size=8.2, color='black', weight="bold")
-            pitch.arrows(success['x'], success['y'], success['endX'], success['endY'],
-                         ax=ax2, color='green', width=2, headwidth=3, label=label_success)
-            pitch.arrows(fail['x'], fail['y'], fail['endX'], fail['endY'],
-                         ax=ax2, color='red', width=2, headwidth=3, alpha=0.6, label=label_fail)
-
-            ax2.set_title(ar(f"تحليل تمريرات {selected_player}"), fontsize=14, weight='bold')
-            total_passes = len(player_passes)
-            successful_passes = len(success)
-            failed_passes = len(fail)
-            accuracy = (successful_passes / total_passes * 100) if total_passes > 0 else 0
-            stats_text = f"✅ عدد التمريرات الناجحة: {successful_passes}    ❌ الخاطئة: {failed_passes}    📊 المجموع: {total_passes}    🎯 الدقة: {accuracy:.1f}%"
-            ax2.text(0.5, 0.97, ar(stats_text), transform=ax2.transAxes,
-                     ha='center', va='bottom', fontsize=11, color='black', fontweight='bold')
-            ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.03), ncol=2, fontsize=12,
-                       frameon=False, handlelength=2.5)
-            st.pyplot(fig2)
-
-
-
-              
-
-            #
-
-
+        st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
