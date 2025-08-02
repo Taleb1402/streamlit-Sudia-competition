@@ -9,3 +9,4 @@ python-bidi
 Pillow
 scipy
 streamlit-authenticator
+scikit-learn
