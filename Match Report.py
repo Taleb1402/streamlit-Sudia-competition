@@ -1218,11 +1218,11 @@ import streamlit as st
 import arabic_reshaper
 from bidi.algorithm import get_display
  # ✅ تحميل الصورة
-img_path = r"C:\Users\aalturaidi\Downloads\SAVEN.jpeg"
-img = Image.open(img_path)
+#img_path = r"C:\Users\aalturaidi\Downloads\SAVEN.jpeg"
+#img = Image.open(img_path)
 
     # ✅ تحويل الصورة إلى array
-img_arr = mpimg.imread(img_path)
+#img_arr = mpimg.imread(img_path)
 # ✅ دالة تعريب النصوص
 import os
 import pandas as pd
@@ -1634,3 +1634,4 @@ with st.expander(" الخريطة الحرارية وتمريرات اللاعب
               
 
             #
+
