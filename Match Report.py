@@ -1115,14 +1115,15 @@ def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
 # ✅ تحميل الملف
-file_path = r"C:\Users\aalturaidi\OneDrive - Ittihad Club Company\Desktop\merged_events_with_competition_all.csv"
-if not os.path.exists(file_path):
-    st.error("⚠️ لم يتم العثور على ملف البيانات في المسار المحدد. تأكد من صحة المسار أو وجود الملف.")
+uploaded_file = st.file_uploader("🔼 ارفع ملف البيانات (CSV)", type=["csv"])
 
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df.columns = df.columns.str.strip()
+    st.success("✅ تم تحميل البيانات بنجاح.")
+else:
+    st.warning("⚠️ الرجاء رفع ملف CSV لبدء التحليل.")
     st.stop()
-
-df = pd.read_csv(file_path)
-df.columns = df.columns.str.strip()
 
 # ✅ تأكد من وجود عمود البطولة
 if 'competition' not in df.columns:
@@ -1217,4 +1218,5 @@ if selected_match:
         st.markdown(ai_matrix_comment)
     except Exception as e:
         st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
+
 
