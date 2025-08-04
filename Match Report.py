@@ -13,6 +13,7 @@ from PIL import Image
 import urllib
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import ConvexHull
+from highlight_text import ax_text, fig_text
 
 from PIL import Image
 import base64
@@ -2652,3 +2653,4 @@ def generate_player_dahsboard(pname):
 player_list = df['name'].unique().tolist()
 pname = st.selectbox('Select Player', player_list, index=0)
 generate_player_dahsboard(pname)
+
