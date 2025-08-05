@@ -2324,10 +2324,11 @@ def defensive_actions(ax, pname, df, team_color="#0099ff", bg_color="#ffffff", l
 def generate_player_dahsboard(pname, hteamName, hgoal_count, ateamName, agoal_count):
     global df, col1, col2, line_color, bg_color, violet, ax_text
 
-    fig, axs = plt.subplots(1, 3, figsize=(27, 17), facecolor='#f5f5f5')
+    fig, axs = plt.subplots(1, 3, figsize=(27, 17), facecolor=bg_color)
 
+    # ✅ تمرير كل المعاملات المطلوبة للدالة
     offensive_actions(axs[0], pname)
-    defensive_actions(axs[1], pname)
+    defensive_actions(axs[1], pname, df, team_color=col1, bg_color=bg_color, line_color=line_color)
     pass_receiving_and_touchmap(axs[2], pname)
 
     fig.subplots_adjust(wspace=0.025)
