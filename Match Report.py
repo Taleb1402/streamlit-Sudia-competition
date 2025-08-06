@@ -1230,6 +1230,34 @@ def plot_congestion(df, hteamName, ateamName, col1, col2, bg_color, line_color, 
 
 
 
+import streamlit as st
+import pandas as pd
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+import streamlit as st
+import pandas as pd
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+# ✅ تعريب النصوص
+import streamlit as st
+import pandas as pd
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+# ✅ دالة تعريب النصوص
+import pandas as pd
+import streamlit as st
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+import streamlit as st
+import pandas as pd
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+# ✅ دالة تعريب النصوص
 def ar(text):
     return get_display(arabic_reshaper.reshape(text))
 
@@ -1237,127 +1265,124 @@ def ar(text):
 def reset_confirmed():
     st.session_state['confirmed'] = False
 
-# ✅ تحميل الملف من المستخدم
-uploaded_file = st.file_uploader("🔼 ارفع ملف البيانات (CSV)", type=["csv"])
+# ✅ تحميل الملف مباشرة من GitHub (تأكد أن الرابط صحيح 100%)
+url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/main/Saudi%20pro%20leauge.csv"
+try:
+    df = pd.read_csv(url)
+except Exception as e:
+    st.error(f"❌ حدث خطأ أثناء تحميل البيانات: {e}")
+    st.stop()
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    df.columns = df.columns.str.strip()
+# ✅ تنظيف الأعمدة
+df.columns = df.columns.str.strip()
 
-    # ✅ التحقق من الأعمدة الأساسية
-    required_columns = ['type', 'name', 'playerId', 'teamName', 'oppositionTeamName']
-    for col in required_columns:
-        if col not in df.columns:
-            st.error(f"⚠️ الملف يفتقد العمود الضروري: {col}")
-            st.stop()
+# ✅ التحقق من الأعمدة الأساسية
+required_columns = ['type', 'name', 'playerId', 'teamName', 'oppositionTeamName']
+for col in required_columns:
+    if col not in df.columns:
+        st.error(f"⚠️ الملف يفتقد العمود الضروري: {col}")
+        st.stop()
 
-    # ✅ تعبئة اسم اللاعب في أحداث Carry التي تفتقده
-    df.loc[
-        (df['type'] == 'Carry') & (df['name'].isna()) & (df['playerId'] == df['playerId'].shift(-1)),
-        'name'
-    ] = df['name'].shift(-1)
+# ✅ تعبئة اسم اللاعب في أحداث Carry التي تفتقده
+df.loc[
+    (df['type'] == 'Carry') & (df['name'].isna()) & (df['playerId'] == df['playerId'].shift(-1)),
+    'name'
+] = df['name'].shift(-1)
 
-    # ✅ اختصار الأسماء
-    def get_short_name(full_name):
-        if pd.isna(full_name):
-            return full_name
-        parts = full_name.split()
-        if len(parts) == 1:
-            return full_name
-        elif len(parts) == 2:
-            return parts[0][0] + ". " + parts[1]
-        else:
-            return parts[0][0] + ". " + parts[1][0] + ". " + " ".join(parts[2:])
-    df['shortName'] = df['name'].apply(get_short_name)
-
-    # ✅ عمود الأهداف العكسية
-    if 'type_value_Own goal' not in df.columns:
-        df['type_value_Own goal'] = 0
+# ✅ اختصار الأسماء
+def get_short_name(full_name):
+    if pd.isna(full_name):
+        return full_name
+    parts = full_name.split()
+    if len(parts) == 1:
+        return full_name
+    elif len(parts) == 2:
+        return parts[0][0] + ". " + parts[1]
     else:
-        df['type_value_Own goal'] = pd.to_numeric(df['type_value_Own goal'], errors='coerce').fillna(0)
+        return parts[0][0] + ". " + parts[1][0] + ". " + " ".join(parts[2:])
+df['shortName'] = df['name'].apply(get_short_name)
 
-    st.success("✅ تم تحميل البيانات بنجاح.")
-
-    # ✅ عمود البطولة
-    if 'competition' not in df.columns:
-        df['competition'] = st.text_input("أدخل اسم البطولة يدويًا:", "")
-    df['competition'] = df['competition'].astype(str).str.strip()
-
-    # ✅ عمود team_vs
-    if 'team_vs' not in df.columns:
-        if {'teamName', 'oppositionTeamName'}.issubset(df.columns):
-            df['team_vs'] = df.apply(
-                lambda row: " vs ".join(sorted([str(row['teamName']), str(row['oppositionTeamName'])])), axis=1
-            )
-        else:
-            st.error("⚠️ الملف لا يحتوي على أعمدة الفريقين.")
-            st.stop()
-
-    # ✅ اختيار البطولة
-    competitions = sorted(df['competition'].dropna().unique().tolist())
-    selected_competition = st.selectbox("🏆 اختر البطولة", competitions)
-    df = df[df['competition'] == selected_competition].copy()
-
-    # ✅ اختيار الجولة
-    week_cols = [col for col in df.columns if col.lower().startswith("week")]
-    if not week_cols:
-        st.error("⚠️ لا يوجد أعمدة للجولات تبدأ بـ week.")
-        st.stop()
-
-    selected_week = st.selectbox("📅 اختر الجولة", week_cols)
-    df = df[df[selected_week] == True].copy()
-
-    # ✅ اختيار المباراة
-    matches = sorted(df['team_vs'].dropna().unique().tolist())
-    if not matches:
-        st.error("⚠️ لا توجد مباريات في هذه الجولة.")
-        st.stop()
-
-    selected_match = st.selectbox("🎯 اختر المباراة", matches)
-
-    # ✅ عند اختيار المباراة
-    if selected_match:
-        df = df[df['team_vs'] == selected_match].copy()
-        df_match = df.copy()
-        st.session_state['df_match'] = df_match
-        hteam, ateam = selected_match.split(" vs ")
-
-        if 'h_a' in df.columns:
-            home_away_df = df.head(2)[['teamName', 'h_a']].sort_values(by='h_a').reset_index(drop=True)
-            hteamName = home_away_df['teamName'][1]
-            ateamName = home_away_df['teamName'][0]
-        else:
-            hteamName, ateamName = hteam, ateam
-        st.session_state['hteam'] = hteamName
-        st.session_state['ateam'] = ateamName
-
-        homedf = df[df['teamName'] == hteamName]
-        awaydf = df[df['teamName'] == ateamName]
-
-        # 🎯 تحليل الأهداف
-        score_df = df[df['type'] == 'Goal'][['type', 'minute', 'type_value_Own goal', 'name', 'teamName']].fillna(0)
-        h_goal = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] == 0)]
-        h_og = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] != 0)]
-        a_goal = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] == 0)]
-        a_og = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] != 0)]
-        hgoal_count = len(h_goal) + len(a_og)
-        agoal_count = len(a_goal) + len(h_og)
-
-        # 👥 أسماء اللاعبين
-        hpnames = homedf['name'].dropna().unique()
-        apnames = awaydf['name'].dropna().unique()
-
-        home_unique_players = homedf['name'].unique()
-        away_unique_players = awaydf['name'].unique()
-        
-        ateamName = df_match['oppositionTeamName'].iloc[0]
-
-      
-       
-        
+# ✅ عمود الأهداف العكسية
+if 'type_value_Own goal' not in df.columns:
+    df['type_value_Own goal'] = 0
 else:
-    st.warning("⚠️ الرجاء رفع ملف CSV لبدء التحليل.")
-    st.stop()          
+    df['type_value_Own goal'] = pd.to_numeric(df['type_value_Own goal'], errors='coerce').fillna(0)
+
+# ✅ عمود البطولة
+if 'competition' not in df.columns:
+    df['competition'] = st.text_input("أدخل اسم البطولة يدويًا:", "")
+df['competition'] = df['competition'].astype(str).str.strip()
+
+# ✅ عمود team_vs
+if 'team_vs' not in df.columns:
+    if {'teamName', 'oppositionTeamName'}.issubset(df.columns):
+        df['team_vs'] = df.apply(
+            lambda row: " vs ".join(sorted([str(row['teamName']), str(row['oppositionTeamName'])])), axis=1
+        )
+    else:
+        st.error("⚠️ الملف لا يحتوي على أعمدة الفريقين.")
+        st.stop()
+
+# ✅ اختيار البطولة
+competitions = sorted(df['competition'].dropna().unique().tolist())
+selected_competition = st.selectbox("🏆 اختر البطولة", competitions)
+df = df[df['competition'] == selected_competition].copy()
+
+# ✅ اختيار الجولة
+week_cols = [col for col in df.columns if col.lower().startswith("week")]
+if not week_cols:
+    st.error("⚠️ لا يوجد أعمدة للجولات تبدأ بـ week.")
+    st.stop()
+selected_week = st.selectbox("📅 اختر الجولة", week_cols)
+df = df[df[selected_week] == True].copy()
+
+# ✅ اختيار المباراة
+matches = sorted(df['team_vs'].dropna().unique().tolist())
+if not matches:
+    st.error("⚠️ لا توجد مباريات في هذه الجولة.")
+    st.stop()
+selected_match = st.selectbox("🎯 اختر المباراة", matches)
+
+# ✅ عند اختيار المباراة
+if selected_match:
+    df = df[df['team_vs'] == selected_match].copy()
+    df_match = df.copy()
+    st.session_state['df_match'] = df_match
+    hteam, ateam = selected_match.split(" vs ")
+
+    if 'h_a' in df.columns:
+        home_away_df = df.head(2)[['teamName', 'h_a']].sort_values(by='h_a').reset_index(drop=True)
+        hteamName = home_away_df['teamName'][1]
+        ateamName = home_away_df['teamName'][0]
+    else:
+        hteamName, ateamName = hteam, ateam
+    st.session_state['hteam'] = hteamName
+    st.session_state['ateam'] = ateamName
+
+    homedf = df[df['teamName'] == hteamName]
+    awaydf = df[df['teamName'] == ateamName]
+
+    # 🎯 تحليل الأهداف
+    score_df = df[df['type'] == 'Goal'][['type', 'minute', 'type_value_Own goal', 'name', 'teamName']].fillna(0)
+    h_goal = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] == 0)]
+    h_og = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] != 0)]
+    a_goal = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] == 0)]
+    a_og = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] != 0)]
+    hgoal_count = len(h_goal) + len(a_og)
+    agoal_count = len(a_goal) + len(h_og)
+
+    # 👥 أسماء اللاعبين
+    hpnames = homedf['name'].dropna().unique()
+    apnames = awaydf['name'].dropna().unique()
+    home_unique_players = homedf['name'].unique()
+    away_unique_players = awaydf['name'].unique()
+
+    ateamName = df_match['oppositionTeamName'].iloc[0]
+
+else:
+    st.warning("⚠️ الرجاء تحديد مباراة لتحليلها.")
+
+
 
             # 🔝 Top Ball Progressor - أكثر اللاعبين تقدمًا بالكرة في الفريق المستضيف
 home_progressor_counts = {'name': [], 'Progressive Passes': [], 'Progressive Carries': []}
@@ -3671,7 +3696,6 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
-
 
 
 
