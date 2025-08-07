@@ -28,10 +28,13 @@ import streamlit as st
 import os
 from PIL import Image
 
+from highlight_text import fig_text  # ⬅️ هذا هو المطلوب
 
 
 
 import streamlit_authenticator as stauth
+
+from Stats import draw_progressive_carry_map
 
 
 
@@ -242,7 +245,7 @@ def plotting_match_stats(ax, df, hteamName, ateamName, col1, col2, bg_color, lin
         ax.text(105, y, f"{stats_away_raw[i]}", color=line_color, fontsize=17, ha='left', va='center', fontweight='bold')
 
     # تنفيذ خريطة التسديد والتحليل
-def draw_shotmap_both_teams(df, hteamName, ateamName):
+def draw_shotmap_both_teams(df, hteamName, ateamName, col1='#1f77b4', col2='#d62728', ax=None):
     import matplotlib.pyplot as plt
     import numpy as np
     from mplsoccer import Pitch
@@ -251,8 +254,6 @@ def draw_shotmap_both_teams(df, hteamName, ateamName):
 
     def ar(text):
         return get_display(arabic_reshaper.reshape(text))
-
-    
 
     # الأهداف
     hgoal_count = len(df[(df['possession_team'] == hteamName) & (df['type'] == 'Goal')])
@@ -279,7 +280,11 @@ def draw_shotmap_both_teams(df, hteamName, ateamName):
     aBigCmiss = len(aShotsdf[(aShotsdf['type_value_Big Chance'] == 214) & (aShotsdf['type'] != 'Goal')])
 
     # رسم الملعب
-    fig, ax = plt.subplots(figsize=(16, 10))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(16, 10))
+    else:
+        fig = ax.get_figure()
+
     pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color="w", linewidth=2, line_color="black")
     pitch.draw(ax=ax)
     ax.set_ylim(-0.5, 68.5)
@@ -337,6 +342,7 @@ def draw_shotmap_both_teams(df, hteamName, ateamName):
 
     plt.tight_layout()
     return fig
+
 # Goal Post Viz
 
 # ShotMap
@@ -1327,6 +1333,7 @@ if 'team_vs' not in df.columns:
 competitions = sorted(df['competition'].dropna().unique().tolist())
 selected_competition = st.selectbox("🏆 اختر البطولة", competitions)
 df = df[df['competition'] == selected_competition].copy()
+league_name = selected_competition
 
 # ✅ اختيار الجولة
 week_cols = [col for col in df.columns if col.lower().startswith("week")]
@@ -2590,6 +2597,47 @@ def draw_progressive_pass_map(ax, team_name, col, line_color):
 
 
 
+def draw_progressive_carry_map(ax, team_name, col, line_color):
+    
+    dfpro = df[(df['teamName'] == team_name) & 
+               (df['prog_carry'] >= 9.11) & 
+               (df['endX'] >= 35)]
+
+    pitch = Pitch(pitch_type='uefa', pitch_color=bg_color, line_color=line_color, linewidth=2, corner_arcs=True)
+    pitch.draw(ax=ax)
+    ax.set_xlim(-0.5, 105.5)
+
+    if team_name == ateam:
+        ax.invert_xaxis()
+        ax.invert_yaxis()
+
+    pro_count = len(dfpro)
+
+    # حساب التوزيع الأفقي
+    left_pro = len(dfpro[dfpro['y'] >= 45.33])
+    mid_pro = len(dfpro[(dfpro['y'] >= 22.67) & (dfpro['y'] < 45.33)])
+    right_pro = len(dfpro[dfpro['y'] < 22.67])
+
+    left_percentage = round((left_pro / pro_count) * 100) if pro_count else 0
+    mid_percentage = round((mid_pro / pro_count) * 100) if pro_count else 0
+    right_percentage = round((right_pro / pro_count) * 100) if pro_count else 0
+
+    ax.hlines([22.67, 45.33], xmin=0, xmax=105, colors=line_color, linestyle='dashed', alpha=0.35)
+
+    bbox_props = dict(boxstyle="round,pad=0.3", edgecolor="None", facecolor=bg_color, alpha=0.75)
+    ax.text(8, 11.335, f'{right_pro}\n({right_percentage}%)', color=col, fontsize=20, va='center', ha='center', bbox=bbox_props)
+    ax.text(8, 34, f'{mid_pro}\n({mid_percentage}%)', color=col, fontsize=20, va='center', ha='center', bbox=bbox_props)
+    ax.text(8, 56.675, f'{left_pro}\n({left_percentage}%)', color=col, fontsize=20, va='center', ha='center', bbox=bbox_props)
+
+    # رسم الأسهم للتقدم بالكرة
+    for _, row in dfpro.iterrows():
+        arrow = patches.FancyArrowPatch((row['x'], row['y']), (row['endX'], row['endY']),
+                                        arrowstyle='->', color=col, mutation_scale=20,
+                                        alpha=0.8, linewidth=2.5, linestyle='--')
+        ax.add_patch(arrow)
+
+    count_text = f"{pro_count} Progressive Carries"
+    ax.set_title(f"{team_name}\n{count_text}", color=line_color, fontsize=22, fontweight='bold')
 
 
 
@@ -3472,6 +3520,25 @@ if analysis_type == "تحليل الفريق":
         except Exception as e:
             st.error(f"❌ خطأ في xT: {e}")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 elif analysis_type == "إحصائيات المباراة":
     with st.expander("⚽️ خريطة التسديدات وتحليل الزخم", expanded=True):
         col1 = st.color_picker("🎨 لون الفريق الأول", '#0099ff', key="color1")
@@ -3480,21 +3547,11 @@ elif analysis_type == "إحصائيات المباراة":
         line_color = st.color_picker("🎨 لون الخط", '#000000', key="line_color")
 
         analysis_option = st.selectbox("📊 اختر نوع التحليل", [
-            "إحصائيات عامة",
-            "خريطة التسديدات",
-            "خريطة المرمى",
-            "تحليل الزخم",
-            "شبكة التمريرات",
-            "خريطة الكتلة الدفاعية",
-            "التحولات العالية",
-            "التمريرات التقدمية",
-            "الإدخالات في الثلث النهائي",
-            "إدخالات منطقة الجزاء",
-            "نهاية التمريرات",
-            "مناطق خلق الفرص",
-            "Zone14 والمساحات النصفية",
-            "الكرات العرضية",
-            "مناطق السيطرة (Zone Dominance)"
+            "إحصائيات عامة", "خريطة التسديدات", "خريطة المرمى", "تحليل الزخم",
+            "شبكة التمريرات", "خريطة الكتلة الدفاعية", "التحولات العالية", "التمريرات التقدمية","الحمولات التقدمية",
+            "الإدخالات في الثلث النهائي", "إدخالات منطقة الجزاء", "نهاية التمريرات",
+            "مناطق خلق الفرص", "Zone14 والمساحات النصفية", "الكرات العرضية",
+            "مناطق السيطرة (Zone Dominance)", "📋 التقرير الكامل (Report 1 + Report 2)"
         ])
 
         try:
@@ -3504,25 +3561,22 @@ elif analysis_type == "إحصائيات المباراة":
                 st.pyplot(fig)
 
             elif analysis_option == "خريطة التسديدات":
-                fig = draw_shotmap_both_teams(df_match, hteam, ateam)
+                fig = draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2)
                 st.pyplot(fig)
 
             elif analysis_option == "خريطة المرمى":
-                st.subheader("🥅 خريطة المرمى")
                 Shotsdf = df_match[df_match['type'].isin(['Goal', 'SavedShot', 'ShotOnPost', 'MissedShots'])].reset_index(drop=True)
-                fig2, ax2 = plt.subplots(figsize=(14, 8))
-                plot_goalPost(ax2, Shotsdf, hteam, ateam, col1, col2, bg_color, line_color)
-                st.pyplot(fig2)
+                fig, ax = plt.subplots(figsize=(14, 8))
+                plot_goalPost(ax, Shotsdf, hteam, ateam, col1, col2, bg_color, line_color)
+                st.pyplot(fig)
 
             elif analysis_option == "تحليل الزخم":
-                st.subheader("📈 تحليل الزخم")
-                fig3, ax = plt.subplots(figsize=(12, 5))
+                fig, ax = plt.subplots(figsize=(12, 5))
                 plot_momentum = generate_and_plot_momentum(df_match, hteam, ateam, col1, col2, bg_color, line_color)
                 plot_momentum(ax)
-                st.pyplot(fig3)
+                st.pyplot(fig)
 
             elif analysis_option == "شبكة التمريرات":
-                st.subheader("🔗 شبكة التمريرات")
                 fig_net, axs = plt.subplots(1, 2, figsize=(22, 9))
                 pass_network(axs[0], hteam, col1, hteam, df_match, bg_color, line_color, ar)
                 axs[0].set_title(ar(f"{hteam} - شبكة التمريرات"), fontsize=14, color=col1)
@@ -3539,19 +3593,31 @@ elif analysis_type == "إحصائيات المباراة":
                 axs[1].set_title(ar(f"{ateam} - التدخلات الدفاعية"), fontsize=14, color=col2)
                 st.pyplot(fig)
 
+
             elif analysis_option == "التحولات العالية":
                 fig, ax = plt.subplots(figsize=(22, 10))
                 HighTO(ax, df_match, hteam, ateam, col1, col2)
                 st.pyplot(fig)
-
+                
+                
             elif analysis_option == "التمريرات التقدمية":
                 fig, axs = plt.subplots(1, 2, figsize=(22, 9))
                 draw_progressive_pass_map(axs[0], hteam, col1, line_color)
                 axs[0].set_title(ar(f"{hteam} - التمريرات التقدمية"), fontsize=20, color=col1)
                 draw_progressive_pass_map(axs[1], ateam, col2, line_color)
                 axs[1].set_title(ar(f"{ateam} - التمريرات التقدمية"), fontsize=20, color=col2)
-                st.pyplot(fig)
+                st.pyplot(fig)   
+                
+            elif analysis_option == "الحمولات التقدمية":
+                 st.markdown("<h3 style='text-align: center;'>📈 خريطة الحمولات التقدمية</h3>", unsafe_allow_html=True)
+                 fig, axs = plt.subplots(1, 2, figsize=(20, 8))
+                 draw_progressive_carry_map(axs[0], hteam, col1, line_color)
+                 draw_progressive_carry_map(axs[1], ateam, col2, line_color)
+                 st.pyplot(fig)
 
+                             
+                
+        
             elif analysis_option == "الإدخالات في الثلث النهائي":
                 fig, axs = plt.subplots(1, 2, figsize=(22, 9))
                 Final_third_entry(axs[0], df_match, hteam, col1, bg_color, line_color, hteam, ateam, is_away=False)
@@ -3559,7 +3625,10 @@ elif analysis_type == "إحصائيات المباراة":
                 Final_third_entry(axs[1], df_match, ateam, col2, bg_color, line_color, hteam, ateam, is_away=True)
                 axs[1].set_title(ar(f"{ateam} - الإدخالات في الثلث النهائي"), fontsize=20, color=col2)
                 st.pyplot(fig)
-
+                
+                
+                
+                
             elif analysis_option == "إدخالات منطقة الجزاء":
                 fig, axs = plt.subplots(1, 2, figsize=(24, 10))
                 box_entry(axs[0], df_match, hteam, hteam, ateam, col1, bg_color, line_color, is_away=False)
@@ -3567,39 +3636,116 @@ elif analysis_type == "إحصائيات المباراة":
                 box_entry(axs[1], df_match, ateam, hteam, ateam, col2, bg_color, line_color, is_away=True)
                 axs[1].set_title(ar(f"{ateam} - إدخالات منطقة الجزاء"), fontsize=20, color=col2)
                 st.pyplot(fig)
-
+                
+                
+                
             elif analysis_option == "نهاية التمريرات":
                 fig, axs = plt.subplots(1, 2, figsize=(20, 8))
                 Pass_end_zone(axs[0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
                 Pass_end_zone(axs[1], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
                 st.pyplot(fig)
-
+        
+                
             elif analysis_option == "مناطق خلق الفرص":
                 fig_cc, axs_cc = plt.subplots(1, 2, figsize=(24, 10))
                 Chance_creating_zone(axs_cc[0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
                 Chance_creating_zone(axs_cc[1], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
-                st.pyplot(fig_cc)
-
+                st.pyplot(fig_cc)  
+                
+                
+                
             elif analysis_option == "Zone14 والمساحات النصفية":
                 fig, axs = plt.subplots(1, 2, figsize=(24, 10))
                 zone14hs(axs[0], df_match, hteam, col1, bg_color, line_color, hteam, ateam)
                 axs[0].set_title(ar(f"{hteam} - المنطقة 14 والمساحات النصفية"), fontsize=14, color=col1)
                 zone14hs(axs[1], df_match, ateam, col2, bg_color, line_color, hteam, ateam)
                 axs[1].set_title(ar(f"{ateam} - المنطقة 14 والمساحات النصفية"), fontsize=14, color=col2)
-                st.pyplot(fig)
-
+                st.pyplot(fig)  
+                
+                
+                
+                
             elif analysis_option == "الكرات العرضية":
                 fig, ax = plt.subplots(figsize=(22, 10))
                 Crosses(ax, df_match, hteam, ateam, col1, col2, bg_color, line_color)
-                st.pyplot(fig)
-
+                st.pyplot(fig)    
+                
             elif analysis_option == "مناطق السيطرة (Zone Dominance)":
                 fig, ax = plt.subplots(figsize=(20, 10))
                 plot_congestion(ax, df_match, hteam, ateam, col1, col2)
-                st.pyplot(fig)
+                st.pyplot(fig)         
+
+
+
+
+
+
+
+            elif analysis_option == "📋 التقرير الكامل (Report 1 + Report 2)":
+                with st.spinner("📊 يتم توليد التقرير الكامل..."):
+                    # تقرير 1
+                                 
+                                  
+                    fig1, axs1 = plt.subplots(4, 3, figsize=(38, 38), facecolor=bg_color)
+                    pass_network(axs1[0, 0], hteam, col1, hteam, df_match, bg_color, line_color, ar)
+                    draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2, ax=axs1[0, 1])  # ✅ هنا
+
+                    pass_network(axs1[0, 2], ateam, col2, hteam, df_match, bg_color, line_color, ar)
+                    defensive_heatmap(axs1[1, 0], hteam, col1, df_match, bg_color, line_color)
+                    # خريطة التسديدات على الملعب (Shotmap)
+
+        
+                    Shotsdf = df_match[df_match['type'].isin(['Goal', 'SavedShot', 'ShotOnPost', 'MissedShots'])].reset_index(drop=True)
+                    plot_goalPost(axs1[1, 1], Shotsdf, hteam, ateam, col1, col2, bg_color, line_color)
+                    defensive_heatmap(axs1[1, 2], ateam, col2, df_match, bg_color, line_color)
+                    draw_progressive_pass_map(axs1[2, 0], hteam, col1, line_color)
+                    generate_and_plot_momentum(df_match, hteam, ateam, col1, col2, bg_color, line_color)(axs1[2, 1])
+                    draw_progressive_pass_map(axs1[2, 2], ateam, col2, line_color)
+                       # الحملات التقدمية للفريق المستضيف
+                    
+                   
+                    draw_progressive_carry_map(axs1[3, 0], hteam, col1, line_color)  # الحمولات التقدمية للمستضيف
+                    plotting_match_stats(axs1[3, 1], df_match, hteam, ateam, col1, col2, bg_color, line_color)  # الإحصائيات في الوسط
+                    draw_progressive_carry_map(axs1[3, 2], ateam, col2, line_color)  # الحمولات التقدمية للضيف
+
+                    
+                    
+                    
+                    
+                    plt.tight_layout(pad=7.5)
+                    
+                    fig_text(0.5, 1.01, f"{league_name} | التقرير الفني - 1", color=line_color, fontsize=28, ha='center', ax=fig1)
+
+                    # تقرير 2
+                    fig2, axs2 = plt.subplots(4, 3, figsize=(38, 38), facecolor=bg_color)
+                    Final_third_entry(axs2[0, 0], df_match, hteam, col1, bg_color, line_color, hteam, ateam, is_away=False)
+                    box_entry(axs2[0, 1], df_match, hteam, hteam, ateam, col1, bg_color, line_color, is_away=False)
+                    Final_third_entry(axs2[0, 2], df_match, ateam, col2, bg_color, line_color, hteam, ateam, is_away=True)
+                    zone14hs(axs2[1, 0], df_match, hteam, col1, bg_color, line_color, hteam, ateam)
+                    Crosses(axs2[1, 1], df_match, hteam, ateam, col1, col2, bg_color, line_color)
+                    zone14hs(axs2[1, 2], df_match, ateam, col2, bg_color, line_color, hteam, ateam)
+                    Pass_end_zone(axs2[2, 0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
+                    HighTO(axs2[2, 1], df_match, hteam, ateam, col1, col2)
+                    Pass_end_zone(axs2[2, 2], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
+                    Chance_creating_zone(axs2[3, 0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
+                    plot_congestion(axs2[3, 1], df_match, hteam, ateam, col1, col2)
+                    Chance_creating_zone(axs2[3, 2], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
+                    fig_text(0.5, 0.95, f"{league_name}  |  التقرير الفني - 2", color=line_color, fontsize=28, ha='center', ax=fig2)
+
+                # عرض التقريرين
+                col1_, col2_ = st.columns(2)
+                with col1_:
+                    st.markdown("#### 🧾 التقرير الأول")
+                    st.pyplot(fig1)
+                with col2_:
+                    st.markdown("#### 🧾 التقرير الثاني")
+                    st.pyplot(fig2)
 
         except Exception as e:
-            st.error(f"❌ خطأ أثناء عرض التحليلات: {e}")
+            st.error(f"❌ حدث خطأ أثناء عرض التحليل: {e}")
+
+
+
 
             # ✅ تحليل لاعب
 # ✅ تحليل لاعب
@@ -3696,6 +3842,5 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
-
 
 
