@@ -34,7 +34,7 @@ from highlight_text import fig_text  # ⬅️ هذا هو المطلوب
 
 import streamlit_authenticator as stauth
 
-from Stats import draw_progressive_carry_map
+
 
 
 
@@ -3842,5 +3842,6 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
