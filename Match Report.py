@@ -33,6 +33,20 @@ from highlight_text import fig_text  # ⬅️ هذا هو المطلوب
 
 
 import streamlit_authenticator as stauth
+import streamlit as st
+
+# رابط الصورة من GitHub (نسخة RAW)
+image_url = "https://raw.githubusercontent.com/Taleb1402/images/main/SAVEN%20(2).jpeg"
+
+# عرض الصورة في الوسط
+st.markdown(
+    f"""
+    <div style="text-align: center;">
+        <img src="{image_url}" width="250">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 
@@ -3999,6 +4013,7 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
 
