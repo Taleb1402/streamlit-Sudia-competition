@@ -40,13 +40,32 @@ import streamlit as st
 from PIL import Image
 from urllib.request import urlopen
 
+import streamlit as st
+from PIL import Image
+from urllib.request import urlopen
+import base64
+from io import BytesIO
+
 @st.cache_data
 def load_image(url):
     return Image.open(urlopen(url))
 
 image_url = "https://raw.githubusercontent.com/Taleb1402/images/main/SAVEN%20(2).jpeg"
 img = load_image(image_url)
-st.image(img, width=250)
+
+# تحويل الصورة لـ Base64 لعرضها بـ HTML
+buffered = BytesIO()
+img.save(buffered, format="JPEG")
+img_str = base64.b64encode(buffered.getvalue()).decode()
+
+st.markdown(
+    f"""
+    <div style="text-align:center;">
+        <img src="data:image/jpeg;base64,{img_str}" width="250">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 
@@ -4360,6 +4379,7 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
 
