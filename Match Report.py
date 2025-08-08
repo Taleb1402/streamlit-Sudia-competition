@@ -37,7 +37,7 @@ import streamlit_authenticator as stauth
 import streamlit as st
 
 # رابط الصورة من GitHub (نسخة RAW)
-image_url = "https://raw.githubusercontent.com/Taleb1402/images/main/SAVEN%20(2).jpeg"
+image_url = "https://github.com/Taleb1402/images/blob/main/SAVEN%20(2).jpeg"
 
 # عرض الصورة في الوسط
 st.markdown(
@@ -4360,6 +4360,7 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
 
