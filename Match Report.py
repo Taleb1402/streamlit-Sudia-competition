@@ -36,18 +36,18 @@ import streamlit_authenticator as stauth
 
 import streamlit as st
 
-# رابط الصورة من GitHub (نسخة RAW)
-image_url = "https://github.com/Taleb1402/images/blob/main/SAVEN%20(2).jpeg"
+import streamlit as st
+from PIL import Image
+from urllib.request import urlopen
 
-# عرض الصورة في الوسط
-st.markdown(
-    f"""
-    <div style="text-align: center;">
-        <img src="{image_url}" width="250">
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+@st.cache_data
+def load_image(url):
+    return Image.open(urlopen(url))
+
+image_url = "https://raw.githubusercontent.com/Taleb1402/images/main/SAVEN%20(2).jpeg"
+img = load_image(image_url)
+st.image(img, width=250)
+
 
 
 # تحميل كلمات المرور المشفرة
@@ -4360,6 +4360,7 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
 
