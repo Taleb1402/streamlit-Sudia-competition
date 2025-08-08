@@ -3279,6 +3279,39 @@ def ar_text(text):
     """إرجاع النص العربي بشكل صحيح لعرضه في matplotlib."""
     return get_display(arabic_reshaper.reshape(text))
 
+
+def plot_pass_sequence_by_id(df_team, seq_id, team_color, ax, bg_color="#ffffff", line_color="#000000"):
+    # تمريرات هذه السلسلة (الناجحة فقط) مرتبة زمنيًا
+    seq = (
+        df_team[(df_team['seq_id'] == seq_id) & (df_team['is_pass'])]
+        .copy()
+        .sort_values('tsec')
+    )
+    # حذف الصفوف التي ينقصها إحداثيات
+    seq = seq.dropna(subset=['x','y','endX','endY'])
+    if seq.empty:
+        ax.set_title(ar_text("لا توجد إحداثيات صالحة لهذه السلسلة"), fontsize=11)
+        return
+
+    pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+    pitch.draw(ax=ax)
+
+    pitch.lines(seq.x, seq.y, seq.endX, seq.endY, comet=True, lw=3, color=team_color, ax=ax, zorder=2)
+    pitch.scatter(seq.endX, seq.endY, s=50, c=bg_color, ec=team_color, lw=2, ax=ax, zorder=3)
+
+    first = seq.iloc[0]
+    pitch.scatter([first.x],[first.y], s=110, c=team_color, ec=line_color, lw=1.2, ax=ax, zorder=4)
+
+    start_t, end_t = int(seq['tsec'].min()), int(seq['tsec'].max())
+    ax.set_title(
+        ar_text(f"سلسلة: {len(seq)} تمريرة\n"
+                f"{start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}"),
+        fontsize=11
+    )
+
+
+
+
 def plot_longest_pass_sequence(df, team_name, color, ax, bg_color, line_color, gap=10, threshold=6):
     # تصفية بيانات الفريق
     d = df[df['teamName'] == team_name].copy()
@@ -3340,25 +3373,76 @@ def plot_longest_pass_sequence(df, team_name, color, ax, bg_color, line_color, g
     )
 
 def plot_pass_sequence_by_id(df_team, seq_id, team_color, ax, bg_color="#ffffff", line_color="#000000"):
-    seq = df_team[(df_team['seq_id'] == seq_id) & (df_team['is_pass'])].copy().sort_values('tsec')
-    if seq.empty or seq[['x','y','endX','endY']].isna().any().any():
+    # تصفية التمريرات الناجحة في هذه السلسلة
+    seq = (
+        df_team[(df_team['seq_id'] == seq_id) & (df_team['is_pass'])]
+        .copy()
+        .sort_values('tsec')
+    )
+    # حذف الصفوف ذات الإحداثيات الناقصة فقط
+    seq = seq.dropna(subset=['x', 'y', 'endX', 'endY'])
+    if seq.empty:
         ax.set_title(ar_text("لا توجد إحداثيات صالحة لهذه السلسلة"), fontsize=11)
         return
 
-    pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+    pitch = VerticalPitch(
+        pitch_type='uefa', pitch_color=bg_color,
+        line_color=line_color, linewidth=2, pad_bottom=20
+    )
     pitch.draw(ax=ax)
+
     pitch.lines(seq.x, seq.y, seq.endX, seq.endY, comet=True, lw=3, color=team_color, ax=ax, zorder=2)
     pitch.scatter(seq.endX, seq.endY, s=50, c=bg_color, ec=team_color, lw=2, ax=ax, zorder=3)
 
+    # أول تمريرة
     first = seq.iloc[0]
-    pitch.scatter([first.x],[first.y], s=110, c=team_color, ec=line_color, lw=1.2, ax=ax, zorder=4)
+    pitch.scatter([first.x], [first.y], s=110, c=team_color, ec=line_color, lw=1.2, ax=ax, zorder=4)
 
+    # وقت البداية والنهاية
     start_t, end_t = int(seq['tsec'].min()), int(seq['tsec'].max())
     ax.set_title(
         ar_text(f"سلسلة: {len(seq)} تمريرة\n"
                 f"{start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}"),
         fontsize=11
     )
+
+
+def extract_pass_sequences(df, team_name, gap=10, threshold=6):
+    d = df[df['teamName'] == team_name].copy()
+    if d.empty:
+        return d.assign(tsec=np.nan, is_pass=False, seq_id=np.nan), pd.DataFrame(columns=['seq_id', 'start', 'end', 'passes'])
+
+    # تحويل الأعمدة الرقمية
+    for c in ['minute', 'second', 'x', 'y', 'endX', 'endY']:
+        if c in d.columns:
+            d[c] = pd.to_numeric(d[c], errors='coerce')
+
+    d = d.sort_values(['minute', 'second']).reset_index(drop=True)
+
+    # حساب الوقت بالثواني
+    d['tsec'] = d['minute'].fillna(0) * 60 + d['second'].fillna(0)
+
+    # تحديد التمريرات الناجحة
+    d['is_pass'] = (d['type'] == 'Pass') & (d['outcomeType'] == 'Successful')
+
+    # تحديد بداية كل سلسلة
+    d['new_seq'] = (d['tsec'].diff().fillna(0).abs() > gap).astype(int)
+    d['seq_id'] = d['new_seq'].cumsum()
+
+    # تجميع السلاسل
+    seqs = d.groupby('seq_id', as_index=False).agg(
+        start=('tsec', 'min'),
+        end=('tsec', 'max'),
+        passes=('is_pass', 'sum')
+    )
+
+    # فلترة السلاسل حسب الحد الأدنى للتمريرات
+    seqs = seqs[seqs['passes'] >= threshold] \
+             .sort_values(['passes', 'start'], ascending=[False, True]) \
+             .reset_index(drop=True)
+
+    return d, seqs
+
 
 def _count_participants(seq):
     # نحاول تغطية أشهر أسماء الأعمدة
@@ -3385,37 +3469,35 @@ def _count_participants(seq):
 
 
 def make_ai_comment_longest(df, team_name, gap=10, threshold=6):
-    """يرجع تعليق AI نصي لأطول سلسلة تمريرات ناجحة للفريق المحدد، مع ذكر المدة بالدقائق/الثواني."""
-    # فلترة الفريق
+    """يرجع تعليق AI نصي لأطول سلسلة تمريرات ناجحة للفريق المحدد."""
     d = df[df['teamName'] == team_name].copy()
     if d.empty:
-        return f"### تحليل AI — {team_name}\n\nلا توجد بيانات لهذا الفريق في الفترة المحددة."
+        return f"### تحليل AI — {team_name}\n\nلا توجد بيانات لهذا الفريق."
 
-    # تحويل أرقام أساسية
+    # تحويل القيم للأرقام
     for c in ['minute','second','x','y','endX','endY']:
         if c in d.columns:
             d[c] = pd.to_numeric(d[c], errors='coerce')
 
-    # ترتيب وحساب الزمن بالثواني + وسم التمريرات الناجحة
+    # حساب الزمن
     d = d.sort_values(['minute','second']).reset_index(drop=True)
     d['tsec'] = d['minute'].fillna(0)*60 + d['second'].fillna(0)
     d['is_pass'] = (d['type'] == 'Pass') & (d['outcomeType'] == 'Successful')
 
-    # تقسيم حسب الفجوة
+    # تقسيم السلاسل
     d['new_seq'] = (d['tsec'].diff().fillna(0).abs() > gap).astype(int)
     d['seq_id']  = d['new_seq'].cumsum()
 
-    # تجميع السلاسل
+    # ملخص السلاسل
     g = d.groupby('seq_id', as_index=False).agg(
         start=('tsec','min'),
         end=('tsec','max'),
         passes=('is_pass','sum')
-    ).sort_values(['passes','start'], ascending=[False, True]).reset_index(drop=True)
+    ).sort_values(['passes','start'], ascending=[False, True])
 
-    # شرط الحد الأدنى
     g = g[g['passes'] >= threshold]
     if g.empty:
-        return f"### تحليل AI — {team_name}\n\nلا توجد سلسلة تتجاوز الحد الأدنى (**{threshold}** تمريرات)."
+        return f"### تحليل AI — {team_name}\n\nلا توجد سلسلة تتجاوز الحد الأدنى ({threshold} تمريرات)."
 
     # أطول سلسلة
     longest_id = int(g.iloc[0]['seq_id'])
@@ -3423,19 +3505,16 @@ def make_ai_comment_longest(df, team_name, gap=10, threshold=6):
     if seq.empty:
         return f"### تحليل AI — {team_name}\n\nتعذر استخراج تفاصيل السلسلة."
 
-    # حسابات الزمن والتمبو
     start_t, end_t = int(seq['tsec'].min()), int(seq['tsec'].max())
-    duration = max(1, end_t - start_t)                 # ثوانٍ
-    tempo = (len(seq) / duration) * 60                 # تمريرات/دقيقة
+    duration = max(1, end_t - start_t)
+    tempo = (len(seq) / duration) * 60
 
-    # حساب عدد المشاركين (إن عندك _count_participants، استخدمها؛ وإلا fallback)
     try:
         players = _count_participants(seq)
-    except NameError:
+    except:
         players = seq['name'].nunique() if 'name' in seq.columns else None
 
-    # صياغة مدة عربية
-    def fmt_duration_ar(seconds: int) -> str:
+    def fmt_duration_ar(seconds):
         m, s = divmod(int(seconds), 60)
         if m and s:   return f"{m} دقيقة و {s} ثانية"
         if m:         return f"{m} دقيقة"
@@ -3444,20 +3523,78 @@ def make_ai_comment_longest(df, team_name, gap=10, threshold=6):
     dur_str = fmt_duration_ar(duration)
 
     bullets = [
-        f"**أطول سلسلة:** {len(seq)} تمريرة خلال **{duration} ثانية** ({dur_str}؛ ≈ **{tempo:.1f}** تمريرة/دقيقة).",
+        f"**أطول سلسلة:** {len(seq)} تمريرة خلال {dur_str} (≈ {tempo:.1f} تمريرة/دقيقة).",
         f"**الزمن:** {start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}.",
-        f"**شرط الفجوة:** ≤ {gap} ثوانٍ بين كل تمريرتين."
+        f"**شرط الفجوة:** ≤ {gap} ثوانٍ."
     ]
     if players:
         bullets.insert(1, f"**عدد اللاعبين المشاركين:** {players}.")
 
-    # تلميح أسلوب
     style_hint = "استحواذ منظم وبناء لعب هادئ." if tempo < 20 else "إيقاع سريع وتمريرات متعاقبة."
     bullets.append(f"**الطابع العام للسلسلة:** {style_hint}")
 
     return "### تحليل AI — " + team_name + "\n\n" + "\n\n".join(bullets)
 
+# === دالة ترسم شبكة كل سلاسل الفريق ===
+def plot_team_sequences_grid(df_period, team_name, team_color,
+                             bg_color="#ffffff", line_color="#000000",
+                             gap=10, threshold=6,
+                             ncols=3, page=1, per_page=9):
+    """
+    ترسم شبكة ملاعب، كل ملعب يمثل سلسلة تمريرات ناجحة (≥ threshold) للفريق.
+    - يدعم ترقيم الصفحات page/per_page.
+    - يبقي الملعب ظاهر حتى لو ما فيه سلاسل (مع عنوان توضيحي).
+    """
+    # استخراج السلاسل
+    df_team, seqs = extract_pass_sequences(df_period, team_name, gap=gap, threshold=threshold)
 
+    # لو ما في سلاسل… نعرض ملعب فاضي بعنوان مبرر
+    if seqs.empty:
+        fig, ax = plt.subplots(figsize=(7, 9), facecolor=bg_color)
+        pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color,
+                              line_color=line_color, linewidth=2, pad_bottom=20)
+        pitch.draw(ax=ax)
+        ax.set_title(ar_text(f"{team_name} — لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)"), fontsize=12)
+        return fig
+
+    # ترقيم الصفحات
+    total = len(seqs)
+    max_page = max(1, int(np.ceil(total / per_page)))
+    page = int(np.clip(page, 1, max_page))
+    start = (page - 1) * per_page
+    end   = min(total, start + per_page)
+    show  = seqs.iloc[start:end].reset_index(drop=True)
+
+    # شبكة
+    n = len(show)
+    nrows = int(np.ceil(n / ncols))
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(6*ncols, 8*nrows),
+                             facecolor=bg_color,
+                             constrained_layout=True)
+    axes = np.array(axes).reshape(-1)
+
+    # رسم كل سلسلة في ملعب مستقل
+    for i, row in enumerate(show.itertuples(index=False)):
+        ax = axes[i]
+        try:
+            plot_pass_sequence_by_id(df_team, int(row.seq_id), team_color, ax, bg_color, line_color)
+            # توصيف مختصر تحت كل ملعب
+            minutes = f"{int(row.start)//60:02d}:{int(row.start)%60:02d} → {int(row.end)//60:02d}:{int(row.end)%60:02d}"
+            ax.set_xlabel(ar_text(f"{team_name} — سلسلة #{int(row.seq_id)} • {int(row.passes)} تمريرات • {minutes}"),
+                          fontsize=9)
+        except Exception as e:
+            ax.axis("off")
+            ax_text(x=0.02, y=0.95, s=f"ERR: {e}", ax=ax, highlight_textprops=[])
+    # إخفاء المحاور الفارغة
+    for j in range(i+1, len(axes)):
+        axes[j].axis("off")
+
+    # عنوان علوي بسيط يوضح نطاق العرض
+    fig.suptitle(ar_text(f"كل السلاسل — {team_name}  (عرض {start+1}–{end} من {total})"),
+                 fontsize=12, y=0.995)
+
+    return fig
 
           
 # ✅ دالة تعريب النصوص
@@ -3507,6 +3644,7 @@ if analysis_type == "أطول سلسلة تمريرات ناجحة":
         start_min = col_t1.number_input("⏳ بداية الفترة (دقيقة)", 0, 90, 0)
         end_min   = col_t2.number_input("⌛ نهاية الفترة (دقيقة)", 0, 90, 45)
 
+    # فلترة الفترة
     df_period = df_long[(df_long['minute'] >= start_min) & (df_long['minute'] < end_min)].copy()
 
     # ألوان
@@ -3516,11 +3654,10 @@ if analysis_type == "أطول سلسلة تمريرات ناجحة":
         line_color = st.color_picker("⚫ لون الخطوط",     "#000000")
         bg_color   = st.color_picker("🟤 لون الخلفية",    "#ffffff")
 
-    # دالة للتعليق RTL
+    # ====== دوال مساعدة محلية ======
     def render_ai_comment_rtl(md_text: str):
         st.markdown(f"<div dir='rtl' style='text-align:right'>{md_text}</div>", unsafe_allow_html=True)
 
-    # دالة: هل توجد سلسلة تمريرات تتجاوز الحد الأدنى؟
     def _has_sequence(df_, team, gap_=10, thr_=6):
         d = df_[df_['teamName'] == team].copy()
         if d.empty:
@@ -3536,40 +3673,124 @@ if analysis_type == "أطول سلسلة تمريرات ناجحة":
         g = d.groupby('seq_id', as_index=False).agg(passes=('is_pass','sum'))
         return (g['passes'] >= thr_).any()
 
-    # دالة: رسم ملعب فارغ بعنوان مبرر
     def draw_empty_pitch(ax, team_name, msg, bg=bg_color, line=line_color):
         pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg, line_color=line, linewidth=2, pad_bottom=20)
         pitch.draw(ax=ax)
         ax.set_title(ar_text(f"{team_name} — {msg}"), fontsize=12)
 
-    # 🎯 الخريطتان جنب بعض، والملعب يظهر دائمًا
-    col_h, col_a = st.columns(2)
+    # === شبكة كل السلاسل للفريق ===
+    def plot_team_sequences_grid(df_period, team_name, team_color,
+                                 bg_color="#ffffff", line_color="#000000",
+                                 gap=10, threshold=6,
+                                 ncols=3, page=1, per_page=9):
+        """
+        ترسم شبكة ملاعب، كل ملعب يمثل سلسلة تمريرات ناجحة (≥ threshold) للفريق.
+        - يدعم ترقيم الصفحات page/per_page.
+        - يبقي الملعب ظاهر حتى لو ما فيه سلاسل (مع عنوان توضيحي).
+        """
+        # استخراج السلاسل
+        df_team, seqs = extract_pass_sequences(df_period, team_name, gap=gap, threshold=threshold)
 
-    # الفريق المستضيف
-    with col_h:
-        fig_h, ax_h = plt.subplots(figsize=(7, 9), facecolor=bg_color)
-        try:
-            if _has_sequence(df_period, hteamName, gap, threshold):
-                plot_longest_pass_sequence(df_period, hteamName, col1, ax_h, bg_color, line_color, gap=gap, threshold=threshold)
-            else:
-                draw_empty_pitch(ax_h, hteamName, f"لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)")
-        except Exception as e:
-            draw_empty_pitch(ax_h, hteamName, f"خطأ: {e}")
-        st.pyplot(fig_h, use_container_width=True)
-        render_ai_comment_rtl(make_ai_comment_longest(df_period, hteamName, gap=gap, threshold=threshold))
+        # لا توجد سلاسل
+        if seqs.empty:
+            fig, ax = plt.subplots(figsize=(7, 9), facecolor=bg_color)
+            pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color,
+                                  line_color=line_color, linewidth=2, pad_bottom=20)
+            pitch.draw(ax=ax)
+            ax.set_title(ar_text(f"{team_name} — لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)"), fontsize=12)
+            return fig
 
-    # الفريق الضيف
-    with col_a:
-        fig_a, ax_a = plt.subplots(figsize=(7, 9), facecolor=bg_color)
-        try:
-            if _has_sequence(df_period, ateamName, gap, threshold):
-                plot_longest_pass_sequence(df_period, ateamName, col2, ax_a, bg_color, line_color, gap=gap, threshold=threshold)
-            else:
-                draw_empty_pitch(ax_a, ateamName, f"لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)")
-        except Exception as e:
-            draw_empty_pitch(ax_a, ateamName, f"خطأ: {e}")
-        st.pyplot(fig_a, use_container_width=True)
-        render_ai_comment_rtl(make_ai_comment_longest(df_period, ateamName, gap=gap, threshold=threshold))
+        # ترقيم الصفحات
+        total = len(seqs)
+        max_page = max(1, int(np.ceil(total / per_page)))
+        page = int(np.clip(page, 1, max_page))
+        start = (page - 1) * per_page
+        end   = min(total, start + per_page)
+        show  = seqs.iloc[start:end].reset_index(drop=True)
+
+        # شبكة
+        n = len(show)
+        nrows = int(np.ceil(n / ncols))
+        fig, axes = plt.subplots(nrows, ncols,
+                                 figsize=(6*ncols, 8*nrows),
+                                 facecolor=bg_color,
+                                 constrained_layout=True)
+        axes = np.array(axes).reshape(-1)
+
+        # رسم كل سلسلة
+        for i, row in enumerate(show.itertuples(index=False)):
+            ax = axes[i]
+            try:
+                plot_pass_sequence_by_id(df_team, int(row.seq_id), team_color, ax, bg_color, line_color)
+                minutes = f"{int(row.start)//60:02d}:{int(row.start)%60:02d} → {int(row.end)//60:02d}:{int(row.end)%60:02d}"
+                ax.set_xlabel(ar_text(f"{team_name} — سلسلة #{int(row.seq_id)} • {int(row.passes)} تمريرات • {minutes}"),
+                              fontsize=9)
+            except Exception as e:
+                ax.axis("off")
+                ax_text(x=0.02, y=0.95, s=f"ERR: {e}", ax=ax, highlight_textprops=[])
+        # إخفاء الفارغ
+        for j in range(i+1, len(axes)):
+            axes[j].axis("off")
+
+        fig.suptitle(ar_text(f"كل السلاسل — {team_name}  (عرض {start+1}–{end} من {total})"),
+                     fontsize=12, y=0.995)
+        return fig
+    # ====== نهاية الدوال المساعدة ======
+
+    # اختيار وضع العرض
+    view_mode = st.radio("طريقة العرض", ["أطول سلسلة لكل فريق", "شبكة كل السلاسل"], horizontal=True)
+
+    if view_mode == "شبكة كل السلاسل":
+        team_choice = st.radio("اختر الفريق", [hteamName, ateamName], horizontal=True)
+        team_color  = col1 if team_choice == hteamName else col2
+
+        # تحكمات الشبكة
+        ncols = st.slider("📐 عدد الأعمدة", 1, 4, 2)
+        per_page = st.slider("🔢 عدد الملاعب في الصفحة", 2, 24, 8)
+
+        # حساب الصفحات
+        _, tmp_seqs = extract_pass_sequences(df_period, team_choice, gap=gap, threshold=threshold)
+        total = len(tmp_seqs)
+        max_page = max(1, int(np.ceil(total / per_page))) if total else 1
+        page = st.number_input("📄 الصفحة", min_value=1, max_value=max_page, value=1, step=1)
+
+        with st.expander("🏟️ شبكة كل سلاسل الفريق", expanded=True):
+            fig_grid = plot_team_sequences_grid(df_period, team_choice, team_color,
+                                                bg_color=bg_color, line_color=line_color,
+                                                gap=gap, threshold=threshold,
+                                                ncols=ncols, page=page, per_page=per_page)
+            st.pyplot(fig_grid, use_container_width=True)
+
+    else:
+        # 🎯 الخريطتان جنب بعض، والملعب يظهر دائمًا
+        col_h, col_a = st.columns(2)
+
+        # الفريق المستضيف
+        with col_h:
+            fig_h, ax_h = plt.subplots(figsize=(7, 9), facecolor=bg_color)
+            try:
+                if _has_sequence(df_period, hteamName, gap, threshold):
+                    plot_longest_pass_sequence(df_period, hteamName, col1, ax_h, bg_color, line_color, gap=gap, threshold=threshold)
+                else:
+                    draw_empty_pitch(ax_h, hteamName, f"لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)")
+            except Exception as e:
+                draw_empty_pitch(ax_h, hteamName, f"خطأ: {e}")
+            st.pyplot(fig_h, use_container_width=True)
+            render_ai_comment_rtl(make_ai_comment_longest(df_period, hteamName, gap=gap, threshold=threshold))
+
+        # الفريق الضيف
+        with col_a:
+            fig_a, ax_a = plt.subplots(figsize=(7, 9), facecolor=bg_color)
+            try:
+                if _has_sequence(df_period, ateamName, gap, threshold):
+                    plot_longest_pass_sequence(df_period, ateamName, col2, ax_a, bg_color, line_color, gap=gap, threshold=threshold)
+                else:
+                    draw_empty_pitch(ax_a, ateamName, f"لا توجد سلاسل تمرير كافية (≥ {threshold} تمريرات)")
+            except Exception as e:
+                draw_empty_pitch(ax_a, ateamName, f"خطأ: {e}")
+            st.pyplot(fig_a, use_container_width=True)
+            render_ai_comment_rtl(make_ai_comment_longest(df_period, ateamName, gap=gap, threshold=threshold))
+
 
 if analysis_type == "أفضل اللاعبين":
     st.markdown("### 👥 اختر اللاعبين لتحليل الأداء")
