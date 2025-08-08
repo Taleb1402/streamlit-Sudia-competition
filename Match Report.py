@@ -1384,7 +1384,7 @@ if selected_match:
     home_unique_players = homedf['name'].unique()
     away_unique_players = awaydf['name'].unique()
 
-    ateamName = df_match['oppositionTeamName'].iloc[0]
+   # ateamName = df_match['oppositionTeamName'].iloc[0]
 
 else:
     st.warning("⚠️ الرجاء تحديد مباراة لتحليلها.")
@@ -3253,9 +3253,100 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
     ax.text(105, -3, "<--- " + left_arrow, color=col2, fontsize=13, ha='right', va='center')
 
 
+from mplsoccer import VerticalPitch
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from mplsoccer import VerticalPitch
+# ارسم أطول سلسلة تمريرات ناجحة للفريق على الملعب
+# احسب كل السلاسل للفريق
+import arabic_reshaper
+from bidi.algorithm import get_display
 
+def ar_text(text):
+    """إرجاع النص العربي بشكل صحيح لعرضه في matplotlib."""
+    return get_display(arabic_reshaper.reshape(text))
 
+def plot_longest_pass_sequence(df, team_name, color, ax, bg_color, line_color, gap=10, threshold=6):
+    # تصفية بيانات الفريق
+    d = df[df['teamName'] == team_name].copy()
 
+    # تحويل القيم الرقمية
+    for c in ['minute','second','x','y','endX','endY']:
+        d[c] = pd.to_numeric(d[c], errors='coerce')
+
+    # ترتيب الأحداث
+    d = d.sort_values(['minute','second']).reset_index(drop=True)
+
+    # حساب الوقت بالثواني
+    d['tsec'] = d['minute']*60 + d['second']
+
+    # تحديد التمريرات الناجحة
+    d['is_pass'] = (d['type'] == 'Pass') & (d['outcomeType'] == 'Successful')
+
+    # تقسيم السلاسل بناءً على الفجوة الزمنية
+    d['new_seq'] = (d['tsec'].diff().fillna(0).abs() > gap).astype(int)
+    d['seq_id']  = d['new_seq'].cumsum()
+
+    # ملخص السلاسل
+    g = d.groupby('seq_id').agg(
+        start=('tsec','min'),
+        end=('tsec','max'),
+        passes=('is_pass','sum')
+    ).reset_index()
+
+    # اختيار فقط السلاسل التي تتجاوز الحد الأدنى
+    g = g[g['passes'] >= threshold].sort_values(['passes','start'], ascending=[False, True]).reset_index(drop=True)
+
+    # إذا ما فيه سلاسل
+    if g.empty:
+        ax.set_title(ar_text(f"{team_name} — لا توجد سلاسل تمرير كافية"), fontsize=12)
+        return
+
+    # اختيار أطول سلسلة
+    longest_id = g.iloc[0]['seq_id']
+    seq = d[(d['seq_id'] == longest_id) & (d['is_pass'])].copy()
+
+    # رسم الملعب
+    pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+    pitch.draw(ax=ax)
+
+    # رسم التمريرات
+    pitch.lines(seq.x, seq.y, seq.endX, seq.endY, comet=True, lw=3, color=color, ax=ax, zorder=2)
+    pitch.scatter(seq.endX, seq.endY, s=50, c=bg_color, ec=color, lw=2, ax=ax, zorder=3)
+
+    # تمييز أول تمريرة
+    first = seq.iloc[0]
+    pitch.scatter([first.x],[first.y], s=110, c=color, ec=line_color, lw=1.2, ax=ax, zorder=4)
+
+    # عنوان الرسم بالعربي
+    start_t, end_t = int(seq['tsec'].min()), int(seq['tsec'].max())
+    ax.set_title(
+        ar_text(f"{team_name}\nأطول سلسلة: {len(seq)} تمريرة\n"
+                f"{start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}"),
+        fontsize=11
+    )
+
+def plot_pass_sequence_by_id(df_team, seq_id, team_color, ax, bg_color="#ffffff", line_color="#000000"):
+    seq = df_team[(df_team['seq_id'] == seq_id) & (df_team['is_pass'])].copy().sort_values('tsec')
+    if seq.empty or seq[['x','y','endX','endY']].isna().any().any():
+        ax.set_title(ar_text("لا توجد إحداثيات صالحة لهذه السلسلة"), fontsize=11)
+        return
+
+    pitch = VerticalPitch(pitch_type='uefa', pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+    pitch.draw(ax=ax)
+    pitch.lines(seq.x, seq.y, seq.endX, seq.endY, comet=True, lw=3, color=team_color, ax=ax, zorder=2)
+    pitch.scatter(seq.endX, seq.endY, s=50, c=bg_color, ec=team_color, lw=2, ax=ax, zorder=3)
+
+    first = seq.iloc[0]
+    pitch.scatter([first.x],[first.y], s=110, c=team_color, ec=line_color, lw=1.2, ax=ax, zorder=4)
+
+    start_t, end_t = int(seq['tsec'].min()), int(seq['tsec'].max())
+    ax.set_title(
+        ar_text(f"سلسلة: {len(seq)} تمريرة\n"
+                f"{start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}"),
+        fontsize=11
+    )
 
 
 
@@ -3269,9 +3360,75 @@ from highlight_text import ax_text
 st.markdown("### اختر نوع التحليل")
 analysis_type = st.radio(
     "حدد القسم",
-    options=["تحليل الفريق", "تحليل لاعب", "إحصائيات المباراة", "أفضل اللاعبين"],
+    #options=["تحليل الفريق", "تحليل لاعب", "إحصائيات المباراة", "أفضل اللاعبين"],
+    options=["تحليل الفريق", "تحليل لاعب", "إحصائيات المباراة", "أفضل اللاعبين", "أطول سلسلة تمريرات ناجحة"],
+
     horizontal=True
 )
+
+if analysis_type == "أطول سلسلة تمريرات ناجحة":
+    st.markdown("### 🔗 أطول سلسلة تمريرات ناجحة لكل فريق")
+
+    # تأمين df_match
+    df_long = st.session_state.get('df_match', df_match).copy()
+
+    # السلايدر للفجوة الزمنية
+    gap = st.slider("⏱️ الفجوة الزمنية بين الأحداث (ثواني)", 5, 20, 10, 1)
+
+    # 🧹 تنظيف الأعمدة
+    for c in ['teamName', 'type', 'outcomeType', 'minute', 'second', 'x', 'y', 'endX', 'endY']:
+        if c in df_long.columns:
+            if c in ['minute', 'second', 'x', 'y', 'endX', 'endY']:
+                df_long[c] = pd.to_numeric(df_long[c], errors='coerce')
+            else:
+                df_long[c] = df_long[c].astype(str).str.strip()
+
+    # 🕒 اختيار الفترة الزمنية
+    time_mode = st.radio(
+        "اختر الفترة الزمنية",
+        ["كامل المباراة", "الشوط الأول", "الشوط الثاني", "فترة مخصصة"],
+        horizontal=True,
+        key="time_mode"
+    )
+
+    start_min, end_min = 0, 90
+    if time_mode == "الشوط الأول":
+        start_min, end_min = 0, 45
+    elif time_mode == "الشوط الثاني":
+        start_min, end_min = 45, 90
+    elif time_mode == "فترة مخصصة":
+        col_t1, col_t2 = st.columns(2)
+        start_min = col_t1.number_input("⏳ بداية الفترة (دقيقة)", min_value=0, max_value=90, value=0)
+        end_min = col_t2.number_input("⌛ نهاية الفترة (دقيقة)", min_value=0, max_value=90, value=45)
+
+    # فلترة البيانات حسب الفترة
+    df_period = df_long[(df_long['minute'] >= start_min) & (df_long['minute'] < end_min)].copy()
+
+    # 🎨 اختيار الألوان
+    with st.expander("🎨 ألوان العرض", expanded=False):
+        col1 = st.color_picker("🎨 لون الفريق المستضيف", globals().get('col1', '#0099ff'), key="lps_col1")
+        col2 = st.color_picker("🎨 لون الفريق الضيف", globals().get('col2', '#ff4d4d'), key="lps_col2")
+        line_color = st.color_picker("⚫ لون الخطوط", globals().get('line_color', "#000000"), key="lps_line")
+        bg_color = st.color_picker("🟤 لون الخلفية", globals().get('bg_color', "#ffffff"), key="lps_bg")
+
+    # 🗺️ الرسم باستخدام df_period بدل df_long
+    with st.expander("🗺️ عرض السلاسل", expanded=True):
+        fig, axs = plt.subplots(1, 2, figsize=(18, 9), facecolor=bg_color)
+
+        try:
+            plot_longest_pass_sequence(df_period, hteamName, col1, axs[0], bg_color, line_color, gap=gap)
+        except Exception as e:
+            axs[0].set_title(f"خطأ مع {hteamName}: {e}", fontsize=12)
+
+        try:
+            plot_longest_pass_sequence(df_period, ateamName, col2, axs[1], bg_color, line_color, gap=gap)
+        except Exception as e:
+            axs[1].set_title(f"خطأ مع {ateamName}: {e}", fontsize=12)
+
+        axs[0].set_xlabel(hteamName)
+        axs[1].set_xlabel(ateamName)
+        st.pyplot(fig)
+
 
 
 if analysis_type == "أفضل اللاعبين":
@@ -3842,6 +3999,7 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
+
 
 
 
