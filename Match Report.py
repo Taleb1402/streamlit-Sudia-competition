@@ -36,37 +36,18 @@ import streamlit_authenticator as stauth
 
 import streamlit as st
 
-import streamlit as st
-from PIL import Image
-from urllib.request import urlopen
-
-import streamlit as st
-from PIL import Image
-from urllib.request import urlopen
-import base64
-from io import BytesIO
-
-@st.cache_data
-def load_image(url):
-    return Image.open(urlopen(url))
-
+# رابط الصورة من GitHub (نسخة RAW)
 image_url = "https://raw.githubusercontent.com/Taleb1402/images/main/SAVEN%20(2).jpeg"
-img = load_image(image_url)
 
-# تحويل الصورة لـ Base64 لعرضها بـ HTML
-buffered = BytesIO()
-img.save(buffered, format="JPEG")
-img_str = base64.b64encode(buffered.getvalue()).decode()
-
+# عرض الصورة في الوسط
 st.markdown(
     f"""
-    <div style="text-align:center;">
-        <img src="data:image/jpeg;base64,{img_str}" width="250">
+    <div style="text-align: center;">
+        <img src="{image_url}" width="250">
     </div>
     """,
     unsafe_allow_html=True
 )
-
 
 
 # تحميل كلمات المرور المشفرة
@@ -1295,32 +1276,64 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 
 # ✅ دالة تعريب النصوص
+# ============================ #
+#        إعدادات ومكتبات       #
+# ============================ #
+import pandas as pd
+import numpy as np
+import streamlit as st
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+ 
+# ✅ دالة تعريب النصوص
+# ============================ #
+#        إعدادات ومكتبات       #
+# ============================ #
+import pandas as pd
+import numpy as np
+import streamlit as st
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+
+# ✅ دالة تعريب النصوص
 def ar(text):
-    return get_display(arabic_reshaper.reshape(text))
+    if text is None:
+        return ""
+    return get_display(arabic_reshaper.reshape(str(text)))
 
 # ✅ دالة إعادة تعيين التأكيد عند تغيير الاختيارات
 def reset_confirmed():
     st.session_state['confirmed'] = False
 
-# ✅ تحميل الملف مباشرة من GitHub (تأكد أن الرابط صحيح 100%)
+
+# ============================ #
+#      تحميل وتنظيف البيانات   #
+# ============================ #
+
+# ✅ تحميل الملف مباشرة من GitHub مع كاش
+@st.cache_data(show_spinner=False)
+def load_data(url: str) -> pd.DataFrame:
+    df = pd.read_csv(url)
+    df.columns = df.columns.str.strip()
+    return df
+
 url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/main/Saudi%20pro%20leauge.csv"
 try:
-    df = pd.read_csv(url)
+    df = load_data(url)
 except Exception as e:
     st.error(f"❌ حدث خطأ أثناء تحميل البيانات: {e}")
     st.stop()
 
-# ✅ تنظيف الأعمدة
-df.columns = df.columns.str.strip()
-
 # ✅ التحقق من الأعمدة الأساسية
 required_columns = ['type', 'name', 'playerId', 'teamName', 'oppositionTeamName']
-for col in required_columns:
-    if col not in df.columns:
-        st.error(f"⚠️ الملف يفتقد العمود الضروري: {col}")
-        st.stop()
+missing = [c for c in required_columns if c not in df.columns]
+if missing:
+    st.error(f"⚠️ الملف يفتقد الأعمدة الضرورية: {missing}")
+    st.stop()
 
-# ✅ تعبئة اسم اللاعب في أحداث Carry التي تفتقده
+# ✅ تعبئة اسم اللاعب في حمل الكرة إذا مفقود
 df.loc[
     (df['type'] == 'Carry') & (df['name'].isna()) & (df['playerId'] == df['playerId'].shift(-1)),
     'name'
@@ -1330,25 +1343,26 @@ df.loc[
 def get_short_name(full_name):
     if pd.isna(full_name):
         return full_name
-    parts = full_name.split()
+    parts = str(full_name).split()
     if len(parts) == 1:
         return full_name
     elif len(parts) == 2:
         return parts[0][0] + ". " + parts[1]
     else:
         return parts[0][0] + ". " + parts[1][0] + ". " + " ".join(parts[2:])
+
 df['shortName'] = df['name'].apply(get_short_name)
 
 # ✅ عمود الأهداف العكسية
-if 'type_value_Own goal' not in df.columns:
-    df['type_value_Own goal'] = 0
-else:
-    df['type_value_Own goal'] = pd.to_numeric(df['type_value_Own goal'], errors='coerce').fillna(0)
+df['type_value_Own goal'] = pd.to_numeric(df.get('type_value_Own goal', 0), errors='coerce').fillna(0)
 
-# ✅ عمود البطولة
+# ✅ عمود البطولة (لا نفلتر حتى تكتب قيمة فعلًا)
 if 'competition' not in df.columns:
-    df['competition'] = st.text_input("أدخل اسم البطولة يدويًا:", "")
-df['competition'] = df['competition'].astype(str).str.strip()
+    st.info("ℹ️ لا يوجد عمود للبطولة في الملف — أدخِلها يدويًا لجميع الصفوف.")
+    comp_input = st.text_input("أدخل اسم البطولة يدويًا:", "", on_change=reset_confirmed)
+    df['competition'] = comp_input
+else:
+    df['competition'] = df['competition'].astype(str).str.strip()
 
 # ✅ عمود team_vs
 if 'team_vs' not in df.columns:
@@ -1360,9 +1374,17 @@ if 'team_vs' not in df.columns:
         st.error("⚠️ الملف لا يحتوي على أعمدة الفريقين.")
         st.stop()
 
-# ✅ اختيار البطولة
-competitions = sorted(df['competition'].dropna().unique().tolist())
-selected_competition = st.selectbox("🏆 اختر البطولة", competitions)
+# ============================ #
+#         اختيارات الواجهة     #
+# ============================ #
+
+# ✅ اختيار البطولة (اسم فعلي غير فارغ)
+competitions = sorted([c for c in df['competition'].dropna().unique().tolist() if str(c).strip() != ""])
+if not competitions:
+    st.warning("⚠️ الرجاء إدخال اسم البطولة أولًا، ثم سيظهر الاختيار.")
+    st.stop()
+
+selected_competition = st.selectbox("🏆 اختر البطولة", competitions, on_change=reset_confirmed)
 df = df[df['competition'] == selected_competition].copy()
 league_name = selected_competition
 
@@ -1371,55 +1393,131 @@ week_cols = [col for col in df.columns if col.lower().startswith("week")]
 if not week_cols:
     st.error("⚠️ لا يوجد أعمدة للجولات تبدأ بـ week.")
     st.stop()
-selected_week = st.selectbox("📅 اختر الجولة", week_cols)
-df = df[df[selected_week] == True].copy()
+
+selected_week = st.selectbox("📅 اختر الجولة", week_cols, on_change=reset_confirmed)
+
+# 🔁 توحيد منطق اختيار الجولة: يدعم (True/False, 1/0, نصوص)
+week_series = df[selected_week]
+if week_series.dtype == bool:
+    df = df[week_series].copy()
+else:
+    week_numeric = pd.to_numeric(
+        week_series.replace({"True": 1, "False": 0, "Yes": 1, "No": 0}), errors='coerce'
+    ).fillna(0)
+    df = df[week_numeric > 0].copy()
 
 # ✅ اختيار المباراة
 matches = sorted(df['team_vs'].dropna().unique().tolist())
 if not matches:
     st.error("⚠️ لا توجد مباريات في هذه الجولة.")
     st.stop()
-selected_match = st.selectbox("🎯 اختر المباراة", matches)
 
-# ✅ عند اختيار المباراة
+selected_match = st.selectbox("🎯 اختر المباراة", matches, on_change=reset_confirmed)
+
+# ============================ #
+#          معالجة المباراة     #
+# ============================ #
 if selected_match:
     df = df[df['team_vs'] == selected_match].copy()
     df_match = df.copy()
     st.session_state['df_match'] = df_match
-    hteam, ateam = selected_match.split(" vs ")
 
+    t1, t2 = selected_match.split(" vs ")
+
+    # ✅ تحديد صاحب الأرض/الضيف (يدعم h/a و home/away)
     if 'h_a' in df.columns:
-        home_away_df = df.head(2)[['teamName', 'h_a']].sort_values(by='h_a').reset_index(drop=True)
-        hteamName = home_away_df['teamName'][1]
-        ateamName = home_away_df['teamName'][0]
+        ha = df[['teamName', 'h_a']].dropna()
+        # تطبيع القيم المحتملة
+        ha['h_a_norm'] = ha['h_a'].astype(str).str.lower().map({'h': 'h', 'a': 'a', 'home': 'h', 'away': 'a'})
+        home_name = ha.loc[ha['h_a_norm'] == 'h', 'teamName']
+        away_name = ha.loc[ha['h_a_norm'] == 'a', 'teamName']
+        if not home_name.empty and not away_name.empty:
+            hteamName, ateamName = home_name.iloc[0], away_name.iloc[0]
+        else:
+            hteamName, ateamName = t1, t2
     else:
-        hteamName, ateamName = hteam, ateam
+        hteamName, ateamName = t1, t2
+
     st.session_state['hteam'] = hteamName
     st.session_state['ateam'] = ateamName
 
-    homedf = df[df['teamName'] == hteamName]
-    awaydf = df[df['teamName'] == ateamName]
+    homedf = df[df['teamName'] == hteamName].copy()
+    awaydf = df[df['teamName'] == ateamName].copy()
 
-    # 🎯 تحليل الأهداف
+    # 🎯 تحليل الأهداف (يشمل الأهداف العكسية)
     score_df = df[df['type'] == 'Goal'][['type', 'minute', 'type_value_Own goal', 'name', 'teamName']].fillna(0)
     h_goal = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] == 0)]
-    h_og = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] != 0)]
+    h_og   = score_df[(score_df['teamName'] == hteamName) & (score_df['type_value_Own goal'] != 0)]
     a_goal = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] == 0)]
-    a_og = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] != 0)]
+    a_og   = score_df[(score_df['teamName'] == ateamName) & (score_df['type_value_Own goal'] != 0)]
     hgoal_count = len(h_goal) + len(a_og)
     agoal_count = len(a_goal) + len(h_og)
 
-    # 👥 أسماء اللاعبين
+    st.markdown(f"###  النتيجة: {ar(hteamName)} {hgoal_count} - {agoal_count} {ar(ateamName)}")
+
+    # 👥 أسماء اللاعبين (قد تحتاجها لاحقًا)
     hpnames = homedf['name'].dropna().unique()
     apnames = awaydf['name'].dropna().unique()
-    home_unique_players = homedf['name'].unique()
-    away_unique_players = awaydf['name'].unique()
+    home_unique_players = homedf['name'].dropna().unique()
+    away_unique_players = awaydf['name'].dropna().unique()
 
-   # ateamName = df_match['oppositionTeamName'].iloc[0]
+    # ============================ #
+    #      🧭 سونار التمريرات      #
+    # ============================ #
+
+    
+
+    
+
+
+
+    team_for_sonar = hteamName  # أو ateamName إذا أردت الفريق الضيف
+
+    # استخراج التمريرات للفريق المختار
+    passes = df_match[(df_match['teamName'] == team_for_sonar) & (df_match['type'] == 'Pass')].copy()
+
+    if passes.empty:
+        st.warning("⚠️ لا توجد تمريرات لهذا الفريق في المباراة.")
+        st.stop()
+
+    # التأكد من توفّر إحداثيات النهاية
+    if 'end_x' not in passes.columns and 'endX' in passes.columns:
+        passes['end_x'] = passes['endX']
+    if 'end_y' not in passes.columns and 'endY' in passes.columns:
+        passes['end_y'] = passes['endY']
+
+    needed_xy = ['x', 'y', 'end_x', 'end_y']
+    missing_xy = [c for c in needed_xy if c not in passes.columns]
+    if missing_xy:
+        st.error(f"⚠️ أعمدة الإحداثيات غير مكتملة (مفقود: {missing_xy}).")
+        st.stop()
+
+    # حساب الطول والزاوية
+    passes['length'] = np.sqrt((passes['end_x'] - passes['x'])**2 + (passes['end_y'] - passes['y'])**2)
+    passes['angle']  = np.arctan2(passes['end_y'] - passes['y'], passes['end_x'] - passes['x'])
+
+    # 📊 تقسيم الزوايا إلى 20 قطاعًا من -π إلى π
+    passes['angle_bin'] = pd.cut(
+        passes['angle'],
+        bins=np.linspace(-np.pi, np.pi, 21),
+        labels=False,
+        include_lowest=True
+    )
+
+    # 🧮 تجميع بيانات السونار
+    sonar_df = passes.groupby(["name", "angle_bin"], as_index=False).agg({"length": "mean"})
+    pass_amt = passes.groupby(['name', 'angle_bin']).size().to_frame(name='amount').reset_index()
+    sonar_df = pd.merge(sonar_df, pass_amt, on=['name', 'angle_bin'])
+
+    # 📍 متوسط مواقع اللاعبين
+    average_location = passes.groupby('name', as_index=False).agg({'x': 'mean', 'y': 'mean'})
+    sonar_df = sonar_df.merge(average_location, on="name", how="left")
+
+    #st.success("✅ تم تجهيز بيانات سونار التمريرات (sonar_df) و جاهزة للرسم.")
+    #st.write(sonar_df.head(10))
 
 else:
     st.warning("⚠️ الرجاء تحديد مباراة لتحليلها.")
-
 
 
             # 🔝 Top Ball Progressor - أكثر اللاعبين تقدمًا بالكرة في الفريق المستضيف
@@ -3283,16 +3381,179 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
     left_arrow = get_display(arabic_reshaper.reshape("اتجاه الهجوم"))
     ax.text(105, -3, "<--- " + left_arrow, color=col2, fontsize=13, ha='right', va='center')
 
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from mplsoccer import Pitch
+from matplotlib.patches import Wedge
+
+# ====== 📦 الاستيرادات ======
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import Wedge
+from mplsoccer import Pitch
+
+# ====== 🎯 دالة Pass Sonar ======
 
 from mplsoccer import VerticalPitch
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mplsoccer import VerticalPitch
-# ارسم أطول سلسلة تمريرات ناجحة للفريق على الملعب
-# احسب كل السلاسل للفريق
+
 import arabic_reshaper
 from bidi.algorithm import get_display
+
+#######################sonar pass#
+
+
+from mplsoccer import Pitch
+from matplotlib.patches import Wedge
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from mplsoccer import Pitch
+from matplotlib.patches import Wedge
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from mplsoccer import Pitch
+from matplotlib.patches import Wedge
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from mplsoccer import Pitch
+from matplotlib.patches import Wedge
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+
+
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+def ar_text(txt: str) -> str:
+    """تصحيح عرض النص العربي داخل matplotlib."""
+    return get_display(arabic_reshaper.reshape(str(txt)))
+
+def draw_pass_sonar(df_match, team_name, selected_jerseys=None, startingXI=None):
+    # تصفية تمريرات الفريق
+    passes = df_match[
+        (df_match['teamName'] == team_name) &
+        (df_match['type'].str.lower() == 'pass')
+    ].copy()
+
+    # تقصير على تشكيلة/أرقام (اختياري)
+    if startingXI:
+        passes = passes[passes['name'].isin(startingXI)]
+    if selected_jerseys is not None and 'jerseyNumber' in passes.columns:
+        jn = pd.to_numeric(passes['jerseyNumber'], errors='coerce')
+        passes = passes[jn.isin(pd.to_numeric(pd.Series(selected_jerseys), errors='coerce'))]
+
+    if passes.empty:
+        fig, ax = plt.subplots(figsize=(10, 7))
+        ax.text(0.5, 0.5, ar_text(f"لا توجد تمريرات لفريق {team_name}"),
+                ha='center', va='center', fontsize=14)
+        ax.axis('off')
+        return fig
+
+    # التأكد من وجود إحداثيات النهاية
+    if 'end_x' not in passes.columns or 'end_y' not in passes.columns:
+        if 'endX' in passes.columns and 'endY' in passes.columns:
+            passes['end_x'] = pd.to_numeric(passes['endX'], errors='coerce')
+            passes['end_y'] = pd.to_numeric(passes['endY'], errors='coerce')
+        else:
+            raise ValueError("لا توجد أعمدة end_x/end_y أو endX/endY في البيانات.")
+
+    # حساب الطول والزاوية
+    passes['length'] = np.sqrt((passes['end_x'] - passes['x'])**2 + (passes['end_y'] - passes['y'])**2)
+    passes['angle']  = np.arctan2(passes['end_y'] - passes['y'], passes['end_x'] - passes['x'])
+
+    # تقسيم الزوايا
+    n_bins = 20
+    passes['angle_bin'] = pd.cut(
+        passes['angle'],
+        bins=np.linspace(-np.pi, np.pi, n_bins+1),
+        labels=False,
+        include_lowest=True
+    )
+
+    # تجميع البيانات
+    sonar_df = passes.groupby(['name','angle_bin'], as_index=False).agg(length=('length','mean'))
+    pass_amt = passes.groupby(['name','angle_bin']).size().to_frame('amount').reset_index()
+    sonar_df = sonar_df.merge(pass_amt, on=['name','angle_bin'], how='left')
+
+    # متوسط مواقع اللاعبين
+    average_location = passes.groupby('name', as_index=False).agg(x=('x','mean'), y=('y','mean'))
+    sonar_df = sonar_df.merge(average_location, on='name', how='left')
+
+    # رسم الملعب
+    pitch = Pitch(pitch_type='uefa', pitch_color='#0e1117', line_color='#c7d5cc')
+    fig, ax = pitch.draw(figsize=(13, 8))
+    fig.set_facecolor('#0e1117')
+
+    # العنوان + وصف موجز
+    ax.set_title(ar_text(f"📊 خريطة سونار التمريرات — {team_name}"), color='white', fontsize=20, pad=20)
+    ax.text(60, -5, ar_text("🔍 كل قطاع يمثل اتجاه وعدد التمريرات.\nاللون يعكس كثافة التمرير."),
+            color='white', fontsize=15, ha='center')
+
+    # الألوان حسب عدد التمريرات
+    cmap_levels = [
+        (0,  "gold",       ar_text("قليل")),
+        (3,  "darkorange", ar_text("متوسط")),
+        (5,  "#9f1b1e",    ar_text("كثير"))
+    ]
+
+    # الرسم لكل لاعب
+    for player in sonar_df['name'].unique():
+        pdf = sonar_df[sonar_df['name'] == player]
+        px, py = pdf['x'].iloc[0], pdf['y'].iloc[0]
+        for _, r in pdf.iterrows():
+            if pd.isna(r['angle_bin']):
+                continue
+            angle_center = -np.pi + (r['angle_bin'] + 0.5) * (2*np.pi/n_bins)
+            theta1 = np.degrees(angle_center - (np.pi/n_bins))
+            theta2 = np.degrees(angle_center + (np.pi/n_bins))
+            amt = r['amount']
+            if amt < 3:
+                color = "gold"
+            elif amt < 5:
+                color = "darkorange"
+            else:
+                color = "#9f1b1e"
+
+            wedge = Wedge(
+                center=(px, py),
+                r=max(4, r['length'] * 0.16),
+                theta1=theta1, theta2=theta2,
+                facecolor=color, edgecolor='black', alpha=0.65
+            )
+            ax.add_patch(wedge)
+
+        # اسم اللاعب (يُترك كما هو إنجليزي/لاتيني)
+        ax.text(px, py, str(player), ha='center', va='center', fontsize=8, color='white')
+
+    # شريط تفسيري للألوان
+    legend_patches = [plt.Line2D([0], [0], color=c, lw=6, label=lbl) for _, c, lbl in cmap_levels]
+    ax.legend(
+        handles=legend_patches,
+        title=ar_text("عدد التمريرات"),
+        title_fontsize=10,
+        fontsize=9,
+        loc='upper right'
+    )
+
+    return fig
+
+
+#st.write(sorted(df_match.columns.tolist()))
+
 
 def ar_text(text):
     """إرجاع النص العربي بشكل صحيح لعرضه في matplotlib."""
@@ -3425,6 +3686,132 @@ def plot_pass_sequence_by_id(df_team, seq_id, team_color, ax, bg_color="#ffffff"
         fontsize=11
     )
 
+# === أرقام القمصان + الرسم المحدث للسلسلة ===
+import numpy as np
+import pandas as pd
+from mplsoccer import VerticalPitch
+
+def _label_positions_from_seq(seq_all: pd.DataFrame):
+    """يختار نقطة تمثيلية لكل لاعب (متوسط x/y و endX/endY)، ويعيد label=jersey أو أول حرفين من الاسم."""
+    pts = []
+    for _, r in seq_all.iterrows():
+        pid   = r.get("playerId", np.nan)
+        jnum  = r.get("jerseyNumber", np.nan)
+        pname = str(r.get("name","")).strip()
+        if pd.notna(r.get("x")) and pd.notna(r.get("y")):
+            pts.append((pid, jnum, pname, float(r["x"]),   float(r["y"])))
+        if pd.notna(r.get("endX")) and pd.notna(r.get("endY")):
+            pts.append((pid, jnum, pname, float(r["endX"]), float(r["endY"])))
+    if not pts:
+        return pd.DataFrame(columns=["playerId","label","x","y"])
+    dfp = pd.DataFrame(pts, columns=["playerId","jerseyNumber","name","x","y"])
+    def _lbl(g):
+        j = g["jerseyNumber"].dropna()
+        if len(j):
+            return str(int(pd.to_numeric(j.iloc[0], errors="coerce")))
+        nm = str(g["name"].iloc[0]).strip()
+        return nm[:2].upper() if nm else "?"
+    lab = dfp.groupby("playerId").apply(
+        lambda g: pd.Series({"label": _lbl(g), "x": g["x"].mean(), "y": g["y"].mean()})
+    ).reset_index()
+    return lab
+
+def plot_pass_sequence_by_id(
+    df_team, seq_id, team_color, ax,
+    bg_color="#ffffff", line_color="#000000",
+    show_carries=True, show_end_marker=True,
+    show_numbers=True
+):
+    """يرسم السلسلة (تمريرات ناجحة + carries اختياري) ويظهر أرقام القمصان/أسماء مختصرة للمشاركين."""
+    seq_all = df_team[df_team["seq_id"] == seq_id].copy()
+    if seq_all.empty:
+        pitch = VerticalPitch(pitch_type="uefa", pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+        pitch.draw(ax=ax)
+        ax.set_title("لا توجد أحداث لهذه السلسلة", fontsize=11)
+        return
+
+    for c in ["minute","second","x","y","endX","endY","tsec","jerseyNumber"]:
+        if c in seq_all.columns: seq_all[c] = pd.to_numeric(seq_all[c], errors="coerce")
+    if "type" in seq_all.columns:        seq_all["type"] = seq_all["type"].astype(str)
+    if "outcomeType" in seq_all.columns: seq_all["outcomeType"] = seq_all["outcomeType"].astype(str)
+    seq_all = seq_all.sort_values("tsec")
+
+    seq_pass  = seq_all[(seq_all["type"].str.lower()=="pass") & (seq_all["outcomeType"].str.lower()=="successful")].copy()
+    seq_carry = seq_all[seq_all["type"].str.lower()=="carry"].copy() if show_carries else seq_all.iloc[0:0].copy()
+
+    for df_ in (seq_pass, seq_carry):
+        if not df_.empty: df_.dropna(subset=["x","y","endX","endY"], inplace=True)
+
+    pitch = VerticalPitch(pitch_type="uefa", pitch_color=bg_color, line_color=line_color, linewidth=2, pad_bottom=20)
+    pitch.draw(ax=ax)
+
+    drew_any = False
+    if not seq_pass.empty:
+        pitch.lines(seq_pass.x, seq_pass.y, seq_pass.endX, seq_pass.endY, comet=True, lw=3, color=team_color, ax=ax, zorder=2)
+        pitch.scatter(seq_pass.endX, seq_pass.endY, s=50, c=bg_color, ec=team_color, lw=2, ax=ax, zorder=3)
+        drew_any = True
+    if show_carries and not seq_carry.empty:
+        pitch.lines(seq_carry.x, seq_carry.y, seq_carry.endX, seq_carry.endY, comet=False, lw=2.5, color=team_color,
+                    ax=ax, linestyle="--", alpha=0.6, zorder=2)
+        pitch.scatter(seq_carry.endX, seq_carry.endY, s=36, c=bg_color, ec=team_color, lw=1.5, ax=ax, alpha=0.6, zorder=3)
+        drew_any = True
+    if not drew_any:
+        ax.set_title("لا توجد إحداثيات صالحة للتمريرات/الحمل في هذه السلسلة", fontsize=11)
+
+    seq_first = pd.concat([seq_pass, seq_carry], ignore_index=True).sort_values("tsec")
+    if not seq_first.empty:
+        first = seq_first.iloc[0]
+        pitch.scatter([first.x], [first.y], s=110, c=team_color, ec=line_color, lw=1.2, ax=ax, zorder=4)
+
+    if show_end_marker and not seq_all.empty:
+        last = seq_all.iloc[-1]
+        lx, ly = last.get("endX", np.nan), last.get("endY", np.nan)
+        if np.isnan(lx) or np.isnan(ly):
+            lx, ly = last.get("x", np.nan), last.get("y", np.nan)
+        last_type = str(last.get("type","")).lower()
+        last_out  = str(last.get("outcomeType","")).lower()
+        if last_type == "shot":
+            marker, ms, alpha = "*", 220, 0.95
+        elif last_out not in ("successful","na","") and last_type in ("pass","carry","dribble","take on"):
+            marker, ms, alpha = "X", 140, 0.9
+        else:
+            marker, ms, alpha = "s", 90, 0.9
+        if not (np.isnan(lx) or np.isnan(ly)):
+            ax.scatter(lx, ly, s=ms, marker=marker, c=team_color, edgecolors=line_color, linewidths=1.3, alpha=alpha, zorder=5)
+            ax.text(lx, ly, " نهاية", fontsize=9, color=line_color, ha="left", va="bottom", zorder=6)
+
+    labels = pd.DataFrame()
+    if show_numbers and ("playerId" in seq_all.columns):
+        labels = _label_positions_from_seq(seq_all)
+        for _, r in labels.iterrows():
+            ax.scatter(r["x"], r["y"], s=210, c=bg_color, edgecolors=line_color, linewidths=1.0, zorder=6)
+            ax.text(r["x"], r["y"], str(r["label"]), ha="center", va="center", fontsize=10,
+                    color=team_color, fontweight="bold", zorder=7)
+
+    if not seq_first.empty:
+        start_t = int(seq_first["tsec"].min())
+        end_t   = int(seq_all["tsec"].max())
+        n_pass  = len(seq_pass)
+        n_carry = len(seq_carry) if show_carries else 0
+        ax.set_title(
+            f"سلسلة: {n_pass} تمريرة" + (f" + {n_carry} Carry" if n_carry else "") +
+            f"\n{start_t//60:02d}:{start_t%60:02d} → {end_t//60:02d}:{end_t%60:02d}",
+            fontsize=11
+        )
+
+    try:
+        fig = ax.figure
+        bbox = ax.get_position()
+        pass_count  = len(seq_pass)
+        carry_count = len(seq_carry)
+        end_str = "غير متوفر" if ('lx' not in locals() or np.isnan(lx) or np.isnan(ly)) else f"({lx:.1f}, {ly:.1f})"
+        fig.text(
+            x=(bbox.x0 + bbox.x1) / 2, y=bbox.y0 - 0.02,
+            s=f"🔵 التمريرات: {pass_count} | 🏃‍♂️ الـCarry: {carry_count} | 🎽 اللاعبين المشاركون: {len(labels) if show_numbers and not labels.empty else '—'} | 📍 نهاية السلسلة: {end_str}",
+            ha="center", va="top", fontsize=10, color="#222"
+        )
+    except Exception:
+        pass
 
 def extract_pass_sequences(df, team_name, gap=10, threshold=6):
     d = df[df['teamName'] == team_name].copy()
@@ -3933,6 +4320,15 @@ if analysis_type == "أفضل اللاعبين":
 
       
 
+import matplotlib.pyplot as plt  # إذا ما كان مستورد فوق
+
+df_match = st.session_state.get('df_match')
+hteam = st.session_state.get('hteam')
+ateam = st.session_state.get('ateam')
+
+if df_match is None or hteam is None or ateam is None:
+    st.warning("⚠️ اختر البطولة ← الجولة ← المباراة أولًا، ثم ارجع لقسم التحليلات.")
+    st.stop()
 
 # ✅ تحليل الفريق
 # ✅ تحليل الفريق
@@ -3943,10 +4339,21 @@ if analysis_type == "تحليل الفريق":
 
     team_analysis_type = st.selectbox(
         "نوع تحليل الفريق",
-        options=["شبكة التمريرات", "مصفوفة التمريرات", "KMeans", "خريطة الكثافة", "xT لأفضل اللاعبين"]
+        options=[
+            "شبكة التمريرات",
+            "مصفوفة التمريرات",
+            "KMeans",
+            "خريطة الكثافة",
+            "xT لأفضل اللاعبين",
+            "📡 Pass Sonar"
+        ]
     )
 
-    selected_team_analysis = st.selectbox("🎯 اختر الفريق", [hteam, ateam], key="selected_team_analysis")
+    selected_team_analysis = st.selectbox(
+        "🎯 اختر الفريق",
+        [hteam, ateam],
+        key="selected_team_analysis"
+    )
     opponent_team = hteam if selected_team_analysis == ateam else ateam
 
     # ✅ اختيار الألوان الموحدة لكل التحليلات
@@ -3987,10 +4394,7 @@ if analysis_type == "تحليل الفريق":
         except Exception as e:
             st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
 
-
-
-
-
+    # ✅ تحليل KMeans
     elif team_analysis_type == "KMeans":
         try:
             fig_kmeans = draw_kmeans_pass_clusters_single_team(df_match, selected_team_analysis)
@@ -3999,6 +4403,7 @@ if analysis_type == "تحليل الفريق":
         except Exception as e:
             st.error(f"❌ خطأ في KMeans: {e}")
 
+    # ✅ خريطة الكثافة
     elif team_analysis_type == "خريطة الكثافة":
         start_cmap = st.color_picker("🎨 لون بداية التمريرات", '#1565C0', key="start_cmap")
         end_cmap = st.color_picker("🎨 لون نهاية التمريرات", '#C62828', key="end_cmap")
@@ -4008,66 +4413,69 @@ if analysis_type == "تحليل الفريق":
         except Exception as e:
             st.error(f"❌ خطأ في خريطة الكثافة: {e}")
 
+    # ✅ xT لأفضل اللاعبين
     elif team_analysis_type == "xT لأفضل اللاعبين":
         xt_color = st.color_picker("🎨 لون xT", '#0099ff', key="xt_color")
         try:
             fig_xt = draw_xt_heatmaps_top_players(df_match, selected_team_analysis, base_color=xt_color)
             st.pyplot(fig_xt)
-            
-            st.markdown("""
-<div dir="rtl" style="text-align: right;">
-<h3>📊 ما هو تحليل xT (Expected Threat) في كرة القدم؟</h3>
-
-<p>
-تحليل <b>xT</b> هو أحد تقنيات تحليل البيانات المتقدمة في كرة القدم، ويُستخدم لقياس <b>مدى خطورة التمريرات أو الحملات بالكرة</b> من حيث احتمالية أن تؤدي إلى هدف.
-</p>
-
-<h4>🔹 ما الذي يعنيه xT؟</h4>
-<ul>
-<li>هو مقياس يوضح مقدار التهديد الذي تُشكّله التمريرة أو اللمسة، حتى لو لم تؤدِّ مباشرةً إلى تسديدة.</li>
-<li>يعتمد على <b>الموقع الذي تبدأ منه التمريرة أو الحركة</b> و<b>الموقع الذي تنتهي إليه</b>.</li>
-</ul>
-
-<h4>🔹 لماذا يُعد هذا مهمًا؟</h4>
-<ul>
-<li>يساعد المدربين والمحللين في التعرف على <b>اللاعبين الأكثر تأثيرًا في بناء الفرص</b>، حتى إن لم يصنعوا أهدافًا مباشرة.</li>
-<li>يوضح <b>الأنماط الخطرة</b> في أسلوب لعب الفريق.</li>
-</ul>
-
-<h4>🔍 في هذه الخريطة:</h4>
-<ul>
-<li>يتم عرض أكثر 6 لاعبين في الفريق من حيث مجموع xT.</li>
-<li>يتم حساب وتلوين الكثافة حسب مواقع لمساتهم وتمريراتهم التي تُشكل تهديدًا.</li>
-<li>كل خريطة تُبرز مساهمة كل لاعب في صناعة الخطورة.</li>
-</ul>
-
-<h4>⚽️ هذا التحليل مهم جدًا للكشافين ومدربي الفرق لفهم:</h4>
-<ul>
-<li>من هم اللاعبين الأكثر تأثيرًا؟</li>
-<li>ما هي المناطق التي يصنع منها الفريق الخطورة؟</li>
-<li>هل يوجد تكرار في نمط التهديد أو تنوّع في اللعب؟</li>
-</ul>
-<hr>
-</div>
-""", unsafe_allow_html=True)
-
-            
-            
-           
+            st.markdown(""" ... """, unsafe_allow_html=True)  # النص التوضيحي هنا
         except Exception as e:
             st.error(f"❌ خطأ في xT: {e}")
 
+    # ✅ Pass Sonar
+    elif team_analysis_type == "📡 Pass Sonar":
+        st.markdown("### 📡 Pass Sonar")
 
+        team_for_sonar = st.radio("اختر الفريق", [hteam, ateam], horizontal=True)
 
+        # اختيار تشكيلة/أرقام (اختياري)
+        use_starting = st.checkbox("تحديد تشكيلة يدوياً", value=False)
+        startingXI = None
+        if use_starting:
+            team_players = sorted(df_match[df_match['teamName'] == team_for_sonar]['name'].dropna().unique().tolist())
+            startingXI = st.multiselect("اختر اللاعبين", team_players)
 
+        use_jerseys = st.checkbox("تحديد أرقام قمصان", value=False)
+        selected_jerseys = None
+        if use_jerseys and 'jerseyNumber' in df_match.columns:
+            pool = (df_match.loc[df_match['teamName'] == team_for_sonar, 'jerseyNumber']
+                            .dropna().astype(str).unique().tolist())
+            jerseys_str = st.multiselect("🎽 أرقام القمصان", sorted(pool))
+            selected_jerseys = []
+            for j in jerseys_str:
+                try:
+                    selected_jerseys.append(int(float(j)))
+                except:
+                    selected_jerseys.append(j)
 
+        try:
+            fig = draw_pass_sonar(
+                df_match,
+                team_for_sonar,
+                selected_jerseys=selected_jerseys,
+                startingXI=startingXI
+                
+            )
+            st.pyplot(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ خطأ في رسم Pass Sonar: {e}")
+            with st.expander("🪲 Debug"):
+                st.write("columns:", sorted(df_match.columns.tolist()))
+                st.write(df_match.head())
 
-
-
-
-
-
-
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+       
 
 
 
@@ -4379,9 +4787,6 @@ elif analysis_type == "تحليل لاعب":
                 st.pyplot(fig2)
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
-
-
-
 
 
 
