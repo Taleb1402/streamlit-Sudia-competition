@@ -2505,12 +2505,13 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
     import numpy as np
     from mplsoccer import Pitch
     from matplotlib.colors import to_rgba
+    import matplotlib.patheffects as path_effects  # ← حدّ أبيض للأرقام
 
     # --- أعمدة محتملة لأرقام القمصان
     jersey_candidates = ['jerseyNumber', 'value_Jersey number.x', 'value_Jersey number.y']
     jersey_cols = [c for c in jersey_candidates if c in df.columns]
 
-    # 🔧 تنظيف الرقم ("7.0" -> 7)
+    # تنظيف الرقم ("7.0" -> 7)
     def _clean_num(s):
         if pd.isna(s): return np.nan
         s = str(s).strip()
@@ -2522,7 +2523,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
         except:
             return np.nan
 
-    # 🎯 تحديد الأساسيين
+    # تحديد الأساسيين
     team_rows = df[df['teamName'] == team_name].copy()
     if 'isFirstEleven' in team_rows.columns:
         starting_players = (team_rows[team_rows['isFirstEleven'] == True]['name']
@@ -2535,7 +2536,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
     else:
         starting_players = team_rows['name'].dropna().unique().tolist()[:11]
 
-    # 🧭 مرجع الأرقام
+    # مرجع الأرقام
     jersey_map = {}
     if jersey_cols:
         sub = team_rows[['name'] + jersey_cols].dropna(subset=['name']).copy()
@@ -2551,7 +2552,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
         num = jersey_map.get(player_name, np.nan)
         return str(int(num)) if pd.notna(num) else ""
 
-    # ✅ تمريرات ناجحة للفريق
+    # تمريرات ناجحة للفريق
     pass_df_full = df[(df['type'] == 'Pass') &
                       (df['outcomeType'] == 'Successful') &
                       (df['teamName'] == team_name)].copy()
@@ -2603,6 +2604,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
     pitch.draw(ax=ax)
     ax.set_xlim(-0.5, 105.5)
 
+    # الخطوط
     pitch.lines(pass_counts_df['avg_x'], pass_counts_df['avg_y'],
                 pass_counts_df['rx'], pass_counts_df['ry'],
                 lw=pass_counts_df['width'], color=colors, zorder=2, ax=ax)
@@ -2612,11 +2614,19 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
         pitch.scatter(r['avg_x'], r['avg_y'], s=1000, marker='o',
                       color=bg_color, edgecolor=line_color, zorder=3, linewidth=2, ax=ax)
 
-    # الملصقات: أرقام فقط
+    # الأرقام: أسود مع حد أبيض رفيع
     for _, r in team_pos.iterrows():
-        pitch.annotate(r['label'], (r['avg_x'], r['avg_y']),
-                       c='black', ha='center', va='center', size=10, ax=ax)
+        txt = pitch.annotate(
+            r['label'], (r['avg_x'], r['avg_y']),
+            c='black', ha='center', va='center', size=10, ax=ax
+        )
+        # تأثيرات المسار لعمل حد أبيض حول النص
+        txt.set_path_effects([
+            path_effects.Stroke(linewidth=2, foreground='white'),
+            path_effects.Normal()
+        ])
 
+    # متوسط التمركز الطولي
     avgph = round(team_pos['avg_x'].median(), 2)
     ax.vlines(x=avgph, ymin=0, ymax=68, color='gray', linestyle='--', zorder=1, alpha=0.75, linewidth=2)
 
@@ -2630,6 +2640,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
         ax.invert_xaxis(); ax.invert_yaxis()
         ax.text(52.5, 71, text_avg, fontsize=15, color=col, ha='center')
         ax.set_title(title_txt, color=col, size=20, fontweight='bold')
+
 
 
 
@@ -5523,6 +5534,7 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
 
 
