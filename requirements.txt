@@ -11,3 +11,4 @@ scipy
 streamlit-authenticator
 scikit-learn
 highlight_text
+extra-streamlit-components
