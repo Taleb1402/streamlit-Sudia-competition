@@ -20,7 +20,6 @@ from matplotlib.patches import Wedge
 from matplotlib.colors import to_rgba
 import colorsys
 from mplsoccer import Pitch
-import extra_streamlit_components as stx
 
 from PIL import Image
 import base64
@@ -2643,9 +2642,6 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
 
 
 
-
-
-
 def defensive_heatmap(ax, team_name, color, df, bg_color, line_color):
 
 
@@ -3030,113 +3026,125 @@ def Crosses(ax, df, hteamName, ateamName, col1, col2, bg_color, line_color):
 
 
 
-def HighTO(ax, df_match, hteamName, ateamName, col1, col2, bg_color="#ffffff", line_color="#000000"):
+def HighTO(ax, df, hteam, ateam, col1, col2, bg_color, line_color):
+    import numpy as np
     import matplotlib.pyplot as plt
     from mplsoccer import Pitch
-    import numpy as np
-    import arabic_reshaper
-    from bidi.algorithm import get_display
     from matplotlib.lines import Line2D
-
-    def _ar(s):
-        try:
+    # دعم العربية (اختياري)
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        def _ar(s):
             return get_display(arabic_reshaper.reshape(str(s)))
-        except Exception:
+    except Exception:
+        def _ar(s):  # fallback
             return str(s)
 
-    # إعداد الملعب
-    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color=bg_color,
-                  line_color=line_color, linewidth=2)
+    # رسم الملعب بخلفية وخطوط مكيّفة
+    pitch = Pitch(pitch_type='uefa', corner_arcs=True,
+                  pitch_color=bg_color, line_color=line_color, linewidth=2)
     pitch.draw(ax=ax)
-    ax.set_ylim(-0.5, 68.5)
     ax.set_xlim(-0.5, 105.5)
+    ax.set_ylim(-0.5, 68.5)
+    ax.set_facecolor(bg_color)
 
-    # تجهيز البيانات
-    highTO = df_match.copy().reset_index(drop=True)
-    highTO['Distance'] = np.hypot(highTO['x'] - 105, highTO['y'] - 34)
+    # نسخة بيانات + مسافة عن مرمى يمين الشاشة (105,34) لتحديد الضغط العالي (<=40م)
+    df_ = df.copy().reset_index(drop=True)
+    df_['Distance'] = np.hypot(df_['x'] - 105, df_['y'] - 34)
 
     # عدادات
     aht_count = ashot_count = agoal_count = 0
     hht_count = hshot_count = hgoal_count = 0
 
-    # ---------------- الفريق الضيف ----------------
-    for i in range(len(highTO)):
-        row = highTO.loc[i]
-        if row['type'] in ['BallRecovery', 'Interception'] and row['teamName'] == ateamName and row['Distance'] <= 40:
+    # ---------- الفريق الضيف (يهاجم يسار->يمين في هذا الشكل) ----------
+    for i in range(len(df_)):
+        row = df_.iloc[i]
+        if row['teamName'] == ateam and row['type'] in ['BallRecovery', 'Interception'] and row['Distance'] <= 40:
             pid = row['possession_id']
             j = i + 1
-            while j < len(highTO) and highTO.loc[j, 'possession_id'] == pid and highTO.loc[j, 'teamName'] == ateamName:
-                if highTO.loc[j, 'type'] == 'Goal':
-                    ax.scatter(row['x'], row['y'], s=600, marker='*', color='green', edgecolor='k', zorder=3)
+            # نبحث ضمن نفس الاستحواذ ونفس الفريق عما إذا انتهى بتسديدة أو هدف
+            while j < len(df_) and df_.iloc[j]['possession_id'] == pid and df_.iloc[j]['teamName'] == ateam:
+                t = df_.iloc[j]['type']
+                if t == 'Goal':
+                    ax.scatter(row['x'], row['y'], s=600, marker='*',
+                               color='green', edgecolor='k', zorder=4)
                     agoal_count += 1
                     break
-                elif 'Shot' in highTO.loc[j, 'type']:
-                    ax.scatter(row['x'], row['y'], s=150, color=col2, edgecolor=bg_color, zorder=2)
+                elif 'Shot' in t:
+                    ax.scatter(row['x'], row['y'], s=150,
+                               color=col2, edgecolor=bg_color, zorder=3)
                     ashot_count += 1
                     break
                 j += 1
-            ax.scatter(row['x'], row['y'], s=100, facecolor='none', edgecolor=col2)
+            # علامة الاسترجاع (بدون تسديدة)
+            ax.scatter(row['x'], row['y'], s=100, facecolor='none',
+                       edgecolor=col2, linewidth=1.6, zorder=2)
             aht_count += 1
 
-    # ---------------- الفريق المستضيف ----------------
-    for i in range(len(highTO)):
-        row = highTO.loc[i]
-        if row['type'] in ['BallRecovery', 'Interception'] and row['teamName'] == hteamName and row['Distance'] <= 40:
+    # ---------- الفريق المستضيف (نقلب الاتجاه ليهاجم يمين الشاشة بصريًا) ----------
+    for i in range(len(df_)):
+        row = df_.iloc[i]
+        if row['teamName'] == hteam and row['type'] in ['BallRecovery', 'Interception'] and row['Distance'] <= 40:
             pid = row['possession_id']
             j = i + 1
-            while j < len(highTO) and highTO.loc[j, 'possession_id'] == pid and highTO.loc[j, 'teamName'] == hteamName:
-                if highTO.loc[j, 'type'] == 'Goal':
-                    ax.scatter(105 - row['x'], 68 - row['y'], s=600, marker='*', color='green', edgecolor='k', zorder=3)
+            while j < len(df_) and df_.iloc[j]['possession_id'] == pid and df_.iloc[j]['teamName'] == hteam:
+                t = df_.iloc[j]['type']
+                if t == 'Goal':
+                    ax.scatter(105 - row['x'], 68 - row['y'], s=600, marker='*',
+                               color='green', edgecolor='k', zorder=4)
                     hgoal_count += 1
                     break
-                elif 'Shot' in highTO.loc[j, 'type']:
-                    ax.scatter(105 - row['x'], 68 - row['y'], s=150, color=col1, edgecolor=bg_color, zorder=2)
+                elif 'Shot' in t:
+                    ax.scatter(105 - row['x'], 68 - row['y'], s=150,
+                               color=col1, edgecolor=bg_color, zorder=3)
                     hshot_count += 1
                     break
                 j += 1
-            ax.scatter(105 - row['x'], 68 - row['y'], s=100, facecolor='none', edgecolor=col1)
+            ax.scatter(105 - row['x'], 68 - row['y'], s=100, facecolor='none',
+                       edgecolor=col1, linewidth=1.6, zorder=2)
             hht_count += 1
 
-    # مناطق الضغط (نصف قطر 40م)
+    # مناطق الضغط (نصف قطر 40م حول كل مرمى)
     ax.add_artist(plt.Circle((0, 34), 40, color=col1, fill=True, alpha=0.25, linestyle='dashed'))
     ax.add_artist(plt.Circle((105, 34), 40, color=col2, fill=True, alpha=0.25, linestyle='dashed'))
 
-    # عناوين وإتجاه الهجوم
-    ax.text(0, 70, f"{hteamName}\nHigh Turnover: {hht_count}", color=col1, size=25, ha='left', fontweight='bold')
-    ax.text(105, 70, f"{ateamName}\nHigh Turnover: {aht_count}", color=col2, size=25, ha='right', fontweight='bold')
-    ax.text(0, -3, '<---Attacking Direction', color=col1, fontsize=13, ha='left')
-    ax.text(105, -3, 'Attacking Direction--->', color=col2, fontsize=13, ha='right')
+    # نصوص العناوين واتجاه الهجوم
+    ax.text(0, 70, f"{_ar(hteam)}\nHigh Turnover: {hht_count}",
+            color=col1, size=16, ha='left', fontweight='bold')
+    ax.text(105, 70, f"{_ar(ateam)}\nHigh Turnover: {aht_count}",
+            color=col2, size=16, ha='right', fontweight='bold')
+    ax.text(0, -3, '<--- Attacking Direction', color=col1, fontsize=11, ha='left')
+    ax.text(105, -3, 'Attacking Direction --->', color=col2, fontsize=11, ha='right')
 
-    # ===== وسيلة الإيضاح برموز الرسم الفعلية =====
+    # وسيلة الإيضاح (رموز مطابقة للرسم)
     legend_elements = [
-        # بدون تسديدة
+        # بدون تسديدة (حواف بلون الفريق)
         Line2D([0], [0], marker='o', linestyle='None',
                markerfacecolor='none', markeredgecolor=col1, markeredgewidth=1.8, markersize=8,
-               label=_ar(f"{hteamName} - بدون تسديدة")),
+               label=_ar(f"{hteam} - بدون تسديدة")),
         Line2D([0], [0], marker='o', linestyle='None',
                markerfacecolor='none', markeredgecolor=col2, markeredgewidth=1.8, markersize=8,
-               label=_ar(f"{ateamName} - بدون تسديدة")),
-
-        # مع تسديدة
+               label=_ar(f"{ateam} - بدون تسديدة")),
+        # مع تسديدة (مملوء بلون الفريق)
         Line2D([0], [0], marker='o', linestyle='None',
                markerfacecolor=col1, markeredgecolor=bg_color, markersize=8,
-               label=_ar(f"{hteamName} - مع تسديدة")),
+               label=_ar(f"{hteam} - مع تسديدة")),
         Line2D([0], [0], marker='o', linestyle='None',
                markerfacecolor=col2, markeredgecolor=bg_color, markersize=8,
-               label=_ar(f"{ateamName} - مع تسديدة")),
-
-        # انتهى بهدف
+               label=_ar(f"{ateam} - مع تسديدة")),
+        # هدف (نجمة خضراء)
         Line2D([0], [0], marker='*', linestyle='None',
                color='none', markerfacecolor='green', markeredgecolor='k', markersize=10,
                label=_ar("انتهى بهدف")),
     ]
-
     ax.legend(handles=legend_elements,
               loc='lower center', bbox_to_anchor=(0.5, -0.15),
-              ncol=3, frameon=True, fontsize=9,
-              fancybox=True, framealpha=0.9)
+              ncol=3, frameon=True, fontsize=9, fancybox=True, framealpha=0.9)
 
     ax.set_aspect('equal', adjustable='box')
+
+
 
 
 def zone14hs(ax, df, team_name, col, bg_color, line_color, hteam, ateam):
@@ -5037,7 +5045,8 @@ elif analysis_type == "إحصائيات المباراة":
 
             elif analysis_option == "التحولات العالية":
                 fig, ax = plt.subplots(figsize=(22, 10))
-                HighTO(ax, df_match, hteam, ateam, col1, col2)
+                HighTO(ax, df_match, hteam, ateam, col1, col2, bg_color, line_color)
+
                 st.pyplot(fig)
                 
                 
@@ -5184,7 +5193,8 @@ elif analysis_type == "إحصائيات المباراة":
                     Crosses(axs2[1, 1], df_match, hteam, ateam, col1, col2, bg_color, line_color)
                     zone14hs(axs2[1, 2], df_match, ateam, col2, bg_color, line_color, hteam, ateam)
                     Pass_end_zone(axs2[2, 0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
-                    HighTO(axs2[2, 1], df_match, hteam, ateam, col1, col2)
+                    HighTO(axs2[2, 1], df_match, hteam, ateam, col1, col2, bg_color, line_color)
+                    
                     Pass_end_zone(axs2[2, 2], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
                     Chance_creating_zone(axs2[3, 0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
 
@@ -5534,7 +5544,3 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
-
-
-
-
