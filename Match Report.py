@@ -20,6 +20,7 @@ from matplotlib.patches import Wedge
 from matplotlib.colors import to_rgba
 import colorsys
 from mplsoccer import Pitch
+import extra_streamlit_components as stx
 
 from PIL import Image
 import base64
@@ -5487,3 +5488,4 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
