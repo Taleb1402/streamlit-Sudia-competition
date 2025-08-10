@@ -2615,7 +2615,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
     # الملصقات: أرقام فقط
     for _, r in team_pos.iterrows():
         pitch.annotate(r['label'], (r['avg_x'], r['avg_y']),
-                       c='w', ha='center', va='center', size=10, ax=ax)
+                       c='black', ha='center', va='center', size=10, ax=ax)
 
     avgph = round(team_pos['avg_x'].median(), 2)
     ax.vlines(x=avgph, ymin=0, ymax=68, color='gray', linestyle='--', zorder=1, alpha=0.75, linewidth=2)
@@ -5523,5 +5523,6 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
 
