@@ -2501,100 +2501,135 @@ def ar(text):
     return get_display(reshaped_text)
 
 def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
+    import pandas as pd
+    import numpy as np
+    from mplsoccer import Pitch
+    from matplotlib.colors import to_rgba
 
-    # استخراج أول 11 لاعب شاركوا فعليًا
-    starting_players = df[df['teamName'] == team_name]['name'].dropna().unique().tolist()[:11]
+    # --- أعمدة محتملة لأرقام القمصان
+    jersey_candidates = ['jerseyNumber', 'value_Jersey number.x', 'value_Jersey number.y']
+    jersey_cols = [c for c in jersey_candidates if c in df.columns]
 
-    # تصفية التمريرات الناجحة
-    pass_df_full = df[(df['type'] == 'Pass') & 
-                      (df['outcomeType'] == 'Successful') & 
+    # 🔧 تنظيف الرقم ("7.0" -> 7)
+    def _clean_num(s):
+        if pd.isna(s): return np.nan
+        s = str(s).strip()
+        import re
+        m = re.search(r'\d+', s)
+        if not m: return np.nan
+        try:
+            return int(m.group(0))
+        except:
+            return np.nan
+
+    # 🎯 تحديد الأساسيين
+    team_rows = df[df['teamName'] == team_name].copy()
+    if 'isFirstEleven' in team_rows.columns:
+        starting_players = (team_rows[team_rows['isFirstEleven'] == True]['name']
+                            .dropna().unique().tolist())
+        if len(starting_players) < 11:
+            extra = [p for p in team_rows['name'].dropna().unique().tolist()
+                     if p not in starting_players][:max(0, 11-len(starting_players))]
+            starting_players += extra
+        starting_players = starting_players[:11]
+    else:
+        starting_players = team_rows['name'].dropna().unique().tolist()[:11]
+
+    # 🧭 مرجع الأرقام
+    jersey_map = {}
+    if jersey_cols:
+        sub = team_rows[['name'] + jersey_cols].dropna(subset=['name']).copy()
+        for c in jersey_cols:
+            sub[c] = sub[c].apply(_clean_num)
+        for p, g in sub.groupby('name'):
+            nums = []
+            for c in jersey_cols:
+                nums += g[c].dropna().astype(int).tolist()
+            jersey_map[p] = (pd.Series(nums).mode().iloc[0] if len(nums) else np.nan)
+
+    def label_for(player_name):
+        num = jersey_map.get(player_name, np.nan)
+        return str(int(num)) if pd.notna(num) else ""
+
+    # ✅ تمريرات ناجحة للفريق
+    pass_df_full = df[(df['type'] == 'Pass') &
+                      (df['outcomeType'] == 'Successful') &
                       (df['teamName'] == team_name)].copy()
 
-    # تحديد مستقبل التمريرة
     pass_df_full['pass_receiver'] = pass_df_full['name'].shift(-1)
     pass_df_full['next_team'] = pass_df_full['teamName'].shift(-1)
-    pass_df_full['pass_receiver'] = pass_df_full.apply(
-        lambda row: row['pass_receiver'] if row['teamName'] == row['next_team'] else None, axis=1
-    )
+    pass_df_full.loc[pass_df_full['teamName'] != pass_df_full['next_team'], 'pass_receiver'] = np.nan
 
-    # تصفية التمريرات بين الأساسيين فقط
-    pass_df = pass_df_full[(pass_df_full['name'].isin(starting_players)) &
-                           (pass_df_full['pass_receiver'].isin(starting_players))][['name', 'pass_receiver']]
+    pass_df = pass_df_full[
+        pass_df_full['name'].isin(starting_players) &
+        pass_df_full['pass_receiver'].isin(starting_players)
+    ][['name', 'pass_receiver']]
 
-    pass_counts_df = pass_df.groupby(['name', 'pass_receiver']).size().reset_index(name='pass_count')
-    pass_counts_df = pass_counts_df.sort_values(by='pass_count', ascending=False).reset_index(drop=True)
+    pass_counts_df = (pass_df.groupby(['name', 'pass_receiver'])
+                           .size().reset_index(name='pass_count')
+                           .sort_values('pass_count', ascending=False)
+                           .reset_index(drop=True))
 
-    # حساب المواقع المتوسطة
-    team_df = df[(df['teamName'] == team_name) & (df['name'].isin(starting_players))][['name', 'x', 'y']]
-    avg_locs_df = team_df.groupby('name').agg(avg_x=('x', 'median'), avg_y=('y', 'median')).reset_index()
+    # تمركز اللاعبين
+    team_pos = (team_rows[team_rows['name'].isin(starting_players)]
+                .groupby('name').agg(avg_x=('x', 'median'), avg_y=('y', 'median'))
+                .reset_index())
 
-    # التأكد من وجود جميع اللاعبين الأساسيين
     for p in starting_players:
-        if p not in avg_locs_df['name'].values:
-            avg_locs_df = pd.concat([
-                avg_locs_df,
-                pd.DataFrame({'name': [p], 'avg_x': [52.5], 'avg_y': [34]})
-            ], ignore_index=True)
+        if p not in team_pos['name'].values:
+            team_pos = pd.concat([team_pos, pd.DataFrame({'name':[p], 'avg_x':[52.5], 'avg_y':[34]})],
+                                 ignore_index=True)
 
-    # اختصارات الأسماء مع الحماية من NaN/float
-    avg_locs_df['short_name'] = avg_locs_df['name'].apply(
-        lambda x: ''.join([n[0] for n in str(x).split()]) if isinstance(x, str) or not pd.isna(x) else '?'
-    )
+    team_pos['label'] = team_pos['name'].apply(label_for)
 
-    # دمج البيانات مع التمريرات
-    pass_counts_df = pd.merge(pass_counts_df, avg_locs_df, on='name', how='left')
-    pass_counts_df = pd.merge(pass_counts_df, avg_locs_df, left_on='pass_receiver', right_on='name',
-                              how='left', suffixes=('', '_receiver'))
-    pass_counts_df.drop(columns=['name_receiver'], inplace=True)
-    pass_counts_df.rename(columns={'avg_x_receiver': 'receiver_avg_x', 'avg_y_receiver': 'receiver_avg_y'}, inplace=True)
+    pass_counts_df = pass_counts_df.merge(team_pos, on='name', how='left')
+    pass_counts_df = pass_counts_df.merge(team_pos, left_on='pass_receiver', right_on='name',
+                                          how='left', suffixes=('', '_recv'))
+    pass_counts_df.drop(columns=['name_recv'], inplace=True)
+    pass_counts_df.rename(columns={'avg_x_recv':'rx', 'avg_y_recv':'ry'}, inplace=True)
 
-    # الرسم
+    # --- الرسم
     MAX_LINE_WIDTH = 15
-    MIN_TRANSPARENCY = 0.05
-    MAX_TRANSPARENCY = 0.85
-    pass_counts_df['width'] = (pass_counts_df.pass_count / pass_counts_df.pass_count.max() * MAX_LINE_WIDTH)
-    color_arr = np.array(to_rgba(col))
-    color = np.tile(color_arr, (len(pass_counts_df), 1))
-    c_transparency = pass_counts_df.pass_count / pass_counts_df.pass_count.max()
-    c_transparency = (c_transparency * (MAX_TRANSPARENCY - MIN_TRANSPARENCY)) + MIN_TRANSPARENCY
-    color[:, 3] = c_transparency
+    MIN_A = 0.05
+    MAX_A = 0.85
+    pass_counts_df['width'] = pass_counts_df['pass_count'] / pass_counts_df['pass_count'].max() * MAX_LINE_WIDTH
+
+    color_rgba = np.array(to_rgba(col))
+    colors = np.tile(color_rgba, (len(pass_counts_df), 1))
+    alphas = pass_counts_df['pass_count'] / pass_counts_df['pass_count'].max()
+    colors[:, 3] = (alphas * (MAX_A - MIN_A)) + MIN_A
 
     pitch = Pitch(pitch_type='uefa', line_color=line_color, pitch_color=bg_color, linewidth=2)
     pitch.draw(ax=ax)
     ax.set_xlim(-0.5, 105.5)
 
-    # تمريرات
-    pitch.lines(pass_counts_df.avg_x, pass_counts_df.avg_y,
-                pass_counts_df.receiver_avg_x, pass_counts_df.receiver_avg_y,
-                lw=pass_counts_df.width, color=color, zorder=2, ax=ax)
+    pitch.lines(pass_counts_df['avg_x'], pass_counts_df['avg_y'],
+                pass_counts_df['rx'], pass_counts_df['ry'],
+                lw=pass_counts_df['width'], color=colors, zorder=2, ax=ax)
 
-    # نقاط اللاعبين
-    for _, row in avg_locs_df.iterrows():
-        pitch.scatter(row['avg_x'], row['avg_y'], s=1000, marker='o',
+    # عقد اللاعبين
+    for _, r in team_pos.iterrows():
+        pitch.scatter(r['avg_x'], r['avg_y'], s=1000, marker='o',
                       color=bg_color, edgecolor=line_color, zorder=3, linewidth=2, ax=ax)
 
-    # أسماء اللاعبين بالأسود
-    for _, row in avg_locs_df.iterrows():
-        pitch.annotate(row['short_name'], xy=(row.avg_x, row.avg_y),
+    # الملصقات: أرقام فقط
+    for _, r in team_pos.iterrows():
+        pitch.annotate(r['label'], (r['avg_x'], r['avg_y']),
                        c='w', ha='center', va='center', size=10, ax=ax)
 
-    # متوسط المسافة الطولية
-    avgph = round(avg_locs_df['avg_x'].median(), 2)
+    avgph = round(team_pos['avg_x'].median(), 2)
     ax.vlines(x=avgph, ymin=0, ymax=68, color='gray', linestyle='--', zorder=1, alpha=0.75, linewidth=2)
 
-    # تعريب النصوص
     text_avg = ar(f"متوسط المسافة الطولية للتمركز {avgph}م")
     title_txt = ar(f"{team_name} - شبكة التمريرات")
 
-    # عكس جهة الضيف
     if team_name.strip().lower() == hteamName.strip().lower():
-        ax.text(52.5, -3, text_avg, fontsize=15, color=col1, ha='center')
-        ax.set_title(title_txt, color=col1, size=20, fontweight='bold')
+        ax.text(52.5, -3, text_avg, fontsize=15, color=col, ha='center')
+        ax.set_title(title_txt, color=col, size=20, fontweight='bold')
     else:
-        ax.invert_xaxis()
-        ax.invert_yaxis()
-        ax.text(52.5, 71, text_avg, fontsize=15, color=col2, ha='center')
-        ax.set_title(title_txt, color=col2, size=20, fontweight='bold')
+        ax.invert_xaxis(); ax.invert_yaxis()
+        ax.text(52.5, 71, text_avg, fontsize=15, color=col, ha='center')
+        ax.set_title(title_txt, color=col, size=20, fontweight='bold')
 
 
 
@@ -5488,4 +5523,5 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
