@@ -104,8 +104,10 @@ st.markdown("""
 
 
 # ✅ الجزء الثاني - مؤشرات إضافية RTL
+# ✅ الجزء الثاني - مؤشرات إضافية RTL
 st.markdown("""
 <div dir="rtl" style="text-align: right;">
+
 <h3>📌 مؤشر PPDA (عدد التمريرات المسموح بها قبل التدخل الدفاعي)</h3>
 <p>
 هو مقياس يُستخدم لتحديد مدى قوة الضغط الذي يمارسه الفريق.  
@@ -127,6 +129,26 @@ st.markdown("""
 هو عدد المرات التي نفذ فيها الفريق سلسلة تمريرات متواصلة مكونة من 10 تمريرات أو أكثر.  
 هذا يعكس قدرة الفريق على الحفاظ على الكرة وبناء اللعب بشكل منظم.
 </p>
+
+<hr>
+
+<h3>📌 ميل الملعب</h3>
+<p>
+هو مقياس يوضح نسبة اللعب في الثلث الهجومي للفريق مقارنة بثلثه الدفاعي.  
+يُحسب من خلال نسبة التمريرات في الثلث الهجومي للفريق إلى مجموع التمريرات في الثلثين الهجوميين للفريقين.  
+كلما ارتفعت النسبة دل ذلك على سيطرة أكبر في مناطق الخصم.
+</p>
+
+<!-- المعادلة بالإنجليزية -->
+<p style="background-color:#222; color:#0f0; padding:10px; border-radius:8px; direction:ltr; text-align:center; font-size:15px;">
+Field Tilt (%) = (Attacking Third Passes of Team) / (Attacking Third Passes of Both Teams) × 100
+</p>
+
+<!-- المعادلة بالعربية -->
+<p style="background-color:#222; color:#0ff; padding:10px; border-radius:8px; text-align:center; font-size:15px;">
+ميل الملعب (%) = (تمريرات الفريق في الثلث الهجومي) ÷ (مجموع تمريرات الفريقين في الثلثين الهجوميين) × 100
+</p>
+
 </div>
 """, unsafe_allow_html=True)
 
@@ -257,100 +279,131 @@ def plotting_match_stats(ax, df, hteamName, ateamName, col1, col2, bg_color, lin
         ax.text(105, y, f"{stats_away_raw[i]}", color=line_color, fontsize=17, ha='left', va='center', fontweight='bold')
 
     # تنفيذ خريطة التسديد والتحليل
-def draw_shotmap_both_teams(df, hteamName, ateamName, col1='#1f77b4', col2='#d62728', ax=None):
+def draw_shotmap_both_teams(df, hteamName, ateamName, col1, col2, bg_color, line_color, ax=None):
     import matplotlib.pyplot as plt
-    import numpy as np
     from mplsoccer import Pitch
+    import numpy as np
     import arabic_reshaper
     from bidi.algorithm import get_display
 
     def ar(text):
         return get_display(arabic_reshaper.reshape(text))
 
-    # الأهداف
-    hgoal_count = len(df[(df['possession_team'] == hteamName) & (df['type'] == 'Goal')])
-    agoal_count = len(df[(df['possession_team'] == ateamName) & (df['type'] == 'Goal')])
-
-    # التسديدات
-    Shotsdf = df[df['type'].isin(['Goal', 'MissedShots', 'SavedShot', 'ShotOnPost'])].reset_index(drop=True)
-    hShotsdf = Shotsdf[Shotsdf['possession_team'] == hteamName]
-    aShotsdf = Shotsdf[Shotsdf['possession_team'] == ateamName]
-    hSavedf = hShotsdf[hShotsdf['type'] == 'SavedShot']
-    aSavedf = aShotsdf[aShotsdf['type'] == 'SavedShot']
-    hogdf = hShotsdf[hShotsdf.get('isOwnGoal', False) == True]
-    aogdf = aShotsdf[aShotsdf.get('isOwnGoal', False) == True]
-
-    # المسافة المتوسطة
-    given_point = (105, 34)
-    home_average_shot_distance = round(np.sqrt((hShotsdf['x'] - given_point[0])**2 + (hShotsdf['y'] - given_point[1])**2).mean(), 2)
-    away_average_shot_distance = round(np.sqrt((aShotsdf['x'] - given_point[0])**2 + (aShotsdf['y'] - given_point[1])**2).mean(), 2)
-
-    # الفرص الكبيرة والضائعة
-    hBigC = len(hShotsdf[hShotsdf['type_value_Big Chance'] == 214])
-    aBigC = len(aShotsdf[aShotsdf['type_value_Big Chance'] == 214])
-    hBigCmiss = len(hShotsdf[(hShotsdf['type_value_Big Chance'] == 214) & (hShotsdf['type'] != 'Goal')])
-    aBigCmiss = len(aShotsdf[(aShotsdf['type_value_Big Chance'] == 214) & (aShotsdf['type'] != 'Goal')])
-
-    # رسم الملعب
+    # أنشئ الشكل إذا لم يُمرر ax
     if ax is None:
         fig, ax = plt.subplots(figsize=(16, 10))
     else:
         fig = ax.get_figure()
 
-    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color="w", linewidth=2, line_color="black")
+    
+
+    # --------- ألوان متباينة مع الخلفية ----------
+    def _hex_to_rgb(h):
+        h = h.lstrip('#')
+        return tuple(int(h[i:i+2], 16)/255 for i in (0, 2, 4)) if len(h) == 6 else (0.1, 0.1, 0.1)
+    def _luminance(rgb):
+        r,g,b = rgb
+        return 0.2126*r + 0.7152*g + 0.0722*b
+    bg_rgb = _hex_to_rgb(bg_color) if isinstance(bg_color, str) else bg_color
+    text_color = "#FFFFFF" if _luminance(bg_rgb) < 0.5 else "#000000"
+
+    # --------- تجهيز البيانات ----------
+    shots_mask = df['type'].isin(['Goal', 'MissedShots', 'SavedShot', 'ShotOnPost'])
+    Shotsdf   = df[shots_mask].copy().reset_index(drop=True)
+
+    # اسم عمود امتلاك الهجمة (قد يكون teamName في بعض البيانات)
+    poss_col = 'possession_team' if 'possession_team' in df.columns else 'teamName'
+
+    hShotsdf = Shotsdf[Shotsdf[poss_col] == hteamName]
+    aShotsdf = Shotsdf[Shotsdf[poss_col] == ateamName]
+
+    hgoal_count = (hShotsdf['type'] == 'Goal').sum()
+    agoal_count = (aShotsdf['type'] == 'Goal').sum()
+
+    hSavedf = hShotsdf[hShotsdf['type'] == 'SavedShot']
+    aSavedf = aShotsdf[aShotsdf['type'] == 'SavedShot']
+
+    # own-goals إن وُجد العمود
+    hogdf = hShotsdf[hShotsdf.get('isOwnGoal', False) == True] if 'isOwnGoal' in hShotsdf.columns else hShotsdf.iloc[0:0]
+    aogdf = aShotsdf[aShotsdf.get('isOwnGoal', False) == True] if 'isOwnGoal' in aShotsdf.columns else aShotsdf.iloc[0:0]
+
+    # --------- رسم الملعب ----------
+    pitch = Pitch(pitch_type='uefa', corner_arcs=True,
+                  pitch_color=bg_color, line_color=line_color, linewidth=2)
     pitch.draw(ax=ax)
     ax.set_ylim(-0.5, 68.5)
     ax.set_xlim(-0.5, 105.5)
 
-    def plot_events(df, x_flip=False, color='#000000', size=200, marker='o', edge='black', fill='full', hatch=None, z=2):
-        x = 105 - df['x'] if x_flip else df['x']
-        y = 68 - df['y'] if x_flip else df['y']
-        facecolor = color if fill == 'full' else 'None'
-        return pitch.scatter(x, y, ax=ax, s=size, edgecolors=edge, c=facecolor, marker=marker, hatch=hatch, zorder=z)
+    # دالة مساعدة لرسم نقاط الأحداث (مع قلب اتجاه المستضيف لليسار->يمين)
+    def plot_events(dff, x_flip=False, color='#000000', size=220,
+                    marker='o', edge='none', fill=True, hatch=None, z=3):
+        if dff.empty: 
+            return
+        x = 105 - dff['x'] if x_flip else dff['x']
+        y = 68 - dff['y'] if x_flip else dff['y']
+        pitch.scatter(x, y, ax=ax, s=size,
+                      edgecolors=edge, c=(color if fill else 'none'),
+                      marker=marker, hatch=hatch, zorder=z)
 
-    # الفريق الأول
+    # الفريق المستضيف (نقلب الاتجاه ليهاجم يمين الشاشة مثل مخطط الإحصائيات)
     plot_events(hShotsdf[hShotsdf['type'] == 'Goal'], True, 'None', 350, 'football', 'green', 'none', None, 3)
-    plot_events(hShotsdf[hShotsdf['type'] == 'MissedShots'], True, col1, 200, 'o', col1)
-    plot_events(hShotsdf[hShotsdf['type'] == 'ShotOnPost'], True, col1, 200, 'o', col1)
-    plot_events(hShotsdf[hShotsdf['type'] == 'SavedShot'], True, 'None', 200, 'o', col1, 'none', '///////')
-    plot_events(hogdf, True, 'None', 350, '*', 'orange', 'none', None, 3)
+    plot_events(hShotsdf[hShotsdf['type'] == 'MissedShots'],True,  color=col1,   size=220, marker='o', edge=col1,   fill=True)
+    plot_events(hShotsdf[hShotsdf['type'] == 'ShotOnPost'], True,  color=col1,   size=220, marker='^', edge=col1,   fill=True)
+    plot_events(hShotsdf[hShotsdf['type'] == 'SavedShot'],  True,  color='none', size=220, marker='o', edge=col1,   fill=False)
+    plot_events(hogdf,                                     True,  color='none', size=460, marker='X', edge='orange',fill=False, z=5)
 
-    # الفريق الثاني
-    plot_events(aShotsdf[aShotsdf['type'] == 'Goal'], False, 'None', 350, 'football', 'green', 'none', None, 3)
-    plot_events(aShotsdf[aShotsdf['type'] == 'MissedShots'], False, col2, 200, 'o', col2)
-    plot_events(aShotsdf[aShotsdf['type'] == 'ShotOnPost'], False, col2, 200, 'o', col2)
-    plot_events(aShotsdf[aShotsdf['type'] == 'SavedShot'], False, 'None', 200, 'o', col2, 'none', '///////')
-    plot_events(aogdf, False, 'None', 350, '*', 'orange', 'none', None, 3)
+    # الفريق الضيف
+    plot_events(aShotsdf[aShotsdf['type'] == 'Goal'],       False, color='none', size=420, marker='*', edge='lime', fill=False, z=5)
+    plot_events(aShotsdf[aShotsdf['type'] == 'MissedShots'],False, color=col2,   size=220, marker='o', edge=col2,   fill=True)
+    plot_events(aShotsdf[aShotsdf['type'] == 'ShotOnPost'], False, color=col2,   size=220, marker='^', edge=col2,   fill=True)
+    plot_events(aShotsdf[aShotsdf['type'] == 'SavedShot'],  False, color='none', size=220, marker='o', edge=col2,   fill=False)
+    plot_events(aogdf,                                     False, color='none', size=460, marker='X', edge='orange',fill=False, z=5)
 
-    def norm(val, total): return (val / total * 20) if total > 0 else 10
+    # --------- أشرطة & نصوص مختصرة ----------
+    def norm(val, tot): 
+        return (val / tot * 20) if tot > 0 else 10
 
-    hTotalShots = len(hShotsdf)
-    aTotalShots = len(aShotsdf)
-    hShotsOnT = len(hSavedf) + hgoal_count
-    aShotsOnT = len(aSavedf) + agoal_count
+    hTotalShots = len(hShotsdf);   aTotalShots = len(aShotsdf)
+    hShotsOnT   = len(hSavedf) + hgoal_count
+    aShotsOnT   = len(aSavedf) + agoal_count
 
-    stats_y = [52, 45, 38, 31, 24, 17]
-    stats_names = [
-        ar("الأهداف"), ar("التسديدات"), ar("على المرمى"),
-        ar("فرص كبيرة"), ar("فرص كبيرة ضائعة"), ar("متوسط المسافة")
-    ]
-    home_vals = [hgoal_count, hTotalShots, hShotsOnT, hBigC, hBigCmiss, home_average_shot_distance]
-    away_vals = [agoal_count, aTotalShots, aShotsOnT, aBigC, aBigCmiss, away_average_shot_distance]
+    # متوسط المسافة (من مركز المرمى تقريبًا 105,34)
+    g = (105, 34)
+    home_avg = float(np.sqrt((hShotsdf['x']-g[0])**2 + (hShotsdf['y']-g[1])**2).mean()) if not hShotsdf.empty else 0.0
+    away_avg = float(np.sqrt((aShotsdf['x']-g[0])**2 + (aShotsdf['y']-g[1])**2).mean()) if not aShotsdf.empty else 0.0
 
-    home_norm = [norm(val, home_vals[i] + away_vals[i]) for i, val in enumerate(home_vals)]
-    away_norm = [norm(val, home_vals[i] + away_vals[i]) for i, val in enumerate(away_vals)]
+    # فرص كبيرة (لو العمود موجود)
+    big_key = 'type_value_Big Chance'
+    hBigC = int((hShotsdf[big_key] == 214).sum()) if big_key in hShotsdf.columns else 0
+    aBigC = int((aShotsdf[big_key] == 214).sum()) if big_key in aShotsdf.columns else 0
+    hBigCmiss = int(((hShotsdf.get(big_key,0) == 214) & (hShotsdf['type'] != 'Goal')).sum())
+    aBigCmiss = int(((aShotsdf.get(big_key,0) == 214) & (aShotsdf['type'] != 'Goal')).sum())
+
+    stats_y    = [52, 45, 38, 31, 24, 17]
+    stats_lbls = [ar("الأهداف"), ar("التسديدات"), ar("على المرمى"),
+                  ar("فرص كبيرة"), ar("فرص كبيرة ضائعة"), ar("متوسط المسافة")]
+
+    home_vals  = [hgoal_count, hTotalShots, hShotsOnT, hBigC, hBigCmiss, round(home_avg,2)]
+    away_vals  = [agoal_count, aTotalShots, aShotsOnT, aBigC, aBigCmiss, round(away_avg,2)]
+
+    home_norm  = [norm(v, home_vals[i] + away_vals[i]) for i,v in enumerate(home_vals)]
+    away_norm  = [norm(v, home_vals[i] + away_vals[i]) for i,v in enumerate(away_vals)]
 
     start_x = 42.5
     ax.barh(stats_y, home_norm, height=5, color=col1, left=start_x)
-    ax.barh(stats_y, away_norm, height=5, color=col2, left=[x + start_x for x in home_norm])
+    ax.barh(stats_y, away_norm, height=5, color=col2, left=[start_x + x for x in home_norm])
 
     for i, y in enumerate(stats_y):
-        ax.text(52.5, y, stats_names[i], color="black", fontsize=14, ha='center', va='center', weight='bold')
-        ax.text(41.5, y, f"{home_vals[i]}", color="black", fontsize=14, ha='right', va='center', weight='bold')
-        ax.text(63.5, y, f"{away_vals[i]}", color="black", fontsize=14, ha='left', va='center', weight='bold')
+        ax.text(52.5, y, stats_lbls[i], color=text_color, fontsize=14,
+                ha='center', va='center', fontweight='bold')
+        ax.text(41.5, y, f"{home_vals[i]}", color=text_color, fontsize=14,
+                ha='right',  va='center', fontweight='bold')
+        ax.text(63.5, y, f"{away_vals[i]}", color=text_color, fontsize=14,
+                ha='left',   va='center', fontweight='bold')
 
-    ax.text(0, 70, f"{hteamName}\n<---", color=col1, size=20, ha='left', fontweight='bold')
-    ax.text(105, 70, f"{ateamName}\n--->", color=col2, size=20, ha='right', fontweight='bold')
+    # إشارات الاتجاه أعلى الرسم
+    ax.text(0,   70, f"{hteamName}\n<---", color=col1, size=16, ha='left',  fontweight='bold')
+    ax.text(105, 70, f"{ateamName}\n--->", color=col2, size=16, ha='right', fontweight='bold')
 
     plt.tight_layout()
     return fig
@@ -2580,7 +2633,7 @@ def pass_network(ax, team_name, col, hteamName, df, bg_color, line_color, ar):
     # أسماء اللاعبين بالأسود
     for _, row in avg_locs_df.iterrows():
         pitch.annotate(row['short_name'], xy=(row.avg_x, row.avg_y),
-                       c='black', ha='center', va='center', size=10, ax=ax)
+                       c='w', ha='center', va='center', size=10, ax=ax)
 
     # متوسط المسافة الطولية
     avgph = round(avg_locs_df['avg_x'].median(), 2)
@@ -2990,22 +3043,36 @@ def Crosses(ax, df, hteamName, ateamName, col1, col2, bg_color, line_color):
 
 
 
-def HighTO(ax, df_match, hteamName, ateamName, col1, col2):
-    from mplsoccer import Pitch
+def HighTO(ax, df_match, hteamName, ateamName, col1, col2, bg_color="#ffffff", line_color="#000000"):
     import matplotlib.pyplot as plt
+    from mplsoccer import Pitch
+    import numpy as np
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    from matplotlib.lines import Line2D
+
+    def _ar(s):
+        try:
+            return get_display(arabic_reshaper.reshape(str(s)))
+        except Exception:
+            return str(s)
 
     # إعداد الملعب
-    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color=bg_color, line_color=line_color, linewidth=2)
+    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color=bg_color,
+                  line_color=line_color, linewidth=2)
     pitch.draw(ax=ax)
     ax.set_ylim(-0.5, 68.5)
     ax.set_xlim(-0.5, 105.5)
 
-    # نسخة من البيانات مع إعادة تعيين الفهرس
+    # تجهيز البيانات
     highTO = df_match.copy().reset_index(drop=True)
-    highTO['Distance'] = ((highTO['x'] - 105)**2 + (highTO['y'] - 34)**2)**0.5
+    highTO['Distance'] = np.hypot(highTO['x'] - 105, highTO['y'] - 34)
+
+    # عدادات
+    aht_count = ashot_count = agoal_count = 0
+    hht_count = hshot_count = hgoal_count = 0
 
     # ---------------- الفريق الضيف ----------------
-    aht_count = ashot_count = agoal_count = 0
     for i in range(len(highTO)):
         row = highTO.loc[i]
         if row['type'] in ['BallRecovery', 'Interception'] and row['teamName'] == ateamName and row['Distance'] <= 40:
@@ -3024,8 +3091,7 @@ def HighTO(ax, df_match, hteamName, ateamName, col1, col2):
             ax.scatter(row['x'], row['y'], s=100, facecolor='none', edgecolor=col2)
             aht_count += 1
 
-    # ---------------- الفريق المضيف ----------------
-    hht_count = hshot_count = hgoal_count = 0
+    # ---------------- الفريق المستضيف ----------------
     for i in range(len(highTO)):
         row = highTO.loc[i]
         if row['type'] in ['BallRecovery', 'Interception'] and row['teamName'] == hteamName and row['Distance'] <= 40:
@@ -3044,15 +3110,44 @@ def HighTO(ax, df_match, hteamName, ateamName, col1, col2):
             ax.scatter(105 - row['x'], 68 - row['y'], s=100, facecolor='none', edgecolor=col1)
             hht_count += 1
 
-    # رسم مناطق الضغط
+    # مناطق الضغط (نصف قطر 40م)
     ax.add_artist(plt.Circle((0, 34), 40, color=col1, fill=True, alpha=0.25, linestyle='dashed'))
     ax.add_artist(plt.Circle((105, 34), 40, color=col2, fill=True, alpha=0.25, linestyle='dashed'))
 
-    # نصوص توضيحية
+    # عناوين وإتجاه الهجوم
     ax.text(0, 70, f"{hteamName}\nHigh Turnover: {hht_count}", color=col1, size=25, ha='left', fontweight='bold')
     ax.text(105, 70, f"{ateamName}\nHigh Turnover: {aht_count}", color=col2, size=25, ha='right', fontweight='bold')
     ax.text(0, -3, '<---Attacking Direction', color=col1, fontsize=13, ha='left')
     ax.text(105, -3, 'Attacking Direction--->', color=col2, fontsize=13, ha='right')
+
+    # ===== وسيلة الإيضاح برموز الرسم الفعلية =====
+    legend_elements = [
+        # بدون تسديدة
+        Line2D([0], [0], marker='o', linestyle='None',
+               markerfacecolor='none', markeredgecolor=col1, markeredgewidth=1.8, markersize=8,
+               label=_ar(f"{hteamName} - بدون تسديدة")),
+        Line2D([0], [0], marker='o', linestyle='None',
+               markerfacecolor='none', markeredgecolor=col2, markeredgewidth=1.8, markersize=8,
+               label=_ar(f"{ateamName} - بدون تسديدة")),
+
+        # مع تسديدة
+        Line2D([0], [0], marker='o', linestyle='None',
+               markerfacecolor=col1, markeredgecolor=bg_color, markersize=8,
+               label=_ar(f"{hteamName} - مع تسديدة")),
+        Line2D([0], [0], marker='o', linestyle='None',
+               markerfacecolor=col2, markeredgecolor=bg_color, markersize=8,
+               label=_ar(f"{ateamName} - مع تسديدة")),
+
+        # انتهى بهدف
+        Line2D([0], [0], marker='*', linestyle='None',
+               color='none', markerfacecolor='green', markeredgecolor='k', markersize=10,
+               label=_ar("انتهى بهدف")),
+    ]
+
+    ax.legend(handles=legend_elements,
+              loc='lower center', bbox_to_anchor=(0.5, -0.15),
+              ncol=3, frameon=True, fontsize=9,
+              fancybox=True, framealpha=0.9)
 
     ax.set_aspect('equal', adjustable='box')
 
@@ -3292,21 +3387,16 @@ def Pass_end_zone(ax, df, team_name, ateam, col, bg_color, line_color, col1, col
     else:
         ax.set_title(ar(f"{team_name}\nخريطة نهاية التمريرات"), color=col2,
                      fontsize=25, fontweight='bold', path_effects=path_eff)
+def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2, bg_color=None, line_color=None):
+    # هنا ترسم مباشرة على ax
+    ax.set_facecolor(bg_color)
+    # بقية الكود...
 
-def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
-    from highlight_text import ax_text
-    from matplotlib.colors import LinearSegmentedColormap
-    from mplsoccer import Pitch
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import pandas as pd
-    import arabic_reshaper
-    from bidi.algorithm import get_display
 
-    # ✅ تدرج لوني بين الفريقين (col2 ← gray ← col1)
+    # ✅ تدرج لوني بين الفريقين
     pcmap = LinearSegmentedColormap.from_list("DominanceCmap", [col2, 'lightgray', col1], N=20)
 
-    # تصفية الأحداث غير المرغوبة
+    # تصفية الأحداث
     df1 = df_match[(df_match['teamName'] == hteamName) &
                    (~df_match['type'].str.contains('SubstitutionOff|SubstitutionOn|Challenge|Card')) &
                    (df_match['type_value_Corner taken'] != 6) &
@@ -3322,12 +3412,12 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
     df2['y'] = 68 - df2['y']
 
     # رسم الملعب
-    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color='white', line_color='black', linewidth=2)
+    pitch = Pitch(pitch_type='uefa', corner_arcs=True, pitch_color=bg_color, line_color=line_color, linewidth=2)
     pitch.draw(ax=ax)
     ax.set_ylim(-0.5, 68.5)
     ax.set_xlim(-0.5, 105.5)
 
-    # تقسيم الملعب إلى مربعات
+    # تقسيم الملعب
     bin_statistic1 = pitch.bin_statistic(df1.x, df1.y, bins=(6, 5), statistic='count', normalize=False)
     bin_statistic2 = pitch.bin_statistic(df2.x, df2.y, bins=(6, 5), statistic='count', normalize=False)
 
@@ -3336,7 +3426,7 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
     cy = np.repeat([61.2, 47.6, 34.0, 20.4, 6.8], 6)
     df_cong = pd.DataFrame({'cx': cx, 'cy': cy})
 
-    # حساب السيطرة في كل مربع
+    # حساب السيطرة
     hd_values = []
     for i in range(5):
         for j in range(6):
@@ -3353,15 +3443,15 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
 
     df_cong['hd'] = hd_values
 
-    # رسم خريطة السيطرة بالألوان
+    # رسم الخريطة
     bin_stat = pitch.bin_statistic(df_cong.cx, df_cong.cy, bins=(6, 5), values=df_cong['hd'], statistic='sum', normalize=False)
     pitch.heatmap(bin_stat, ax=ax, cmap=pcmap, edgecolors='black', lw=0.5, zorder=3, alpha=0.85)
 
     # ✅ خطوط التقسيم
     for i in range(1, 6):
-        ax.vlines(i * (105 / 6), ymin=0, ymax=68, color='white', lw=2, ls='--', zorder=5)
+        ax.vlines(i * (105 / 6), ymin=0, ymax=68, color=line_color, lw=2, ls='--', zorder=5)
     for i in range(1, 5):
-        ax.hlines(i * (68 / 5), xmin=0, xmax=105, color='white', lw=2, ls='--', zorder=5)
+        ax.hlines(i * (68 / 5), xmin=0, xmax=105, color=line_color, lw=2, ls='--', zorder=5)
 
     # ✅ النص العلوي المعرب
     txt = get_display(arabic_reshaper.reshape(f"< {hteamName} >     مناطق متنازع عليها     < {ateamName} >"))
@@ -3370,16 +3460,19 @@ def plot_congestion(ax, df_match, hteamName, ateamName, col1, col2):
             highlight_textprops=[{'color': col1}, {'color': col2}],
             color='gray', fontsize=18, ha='center', va='center', ax=ax)
 
-    # ✅ عنوان الرسم معرب
+    # ✅ عنوان الرسم
     title = get_display(arabic_reshaper.reshape("🧭 مناطق السيطرة على الملعب"))
-    ax.set_title(title, color='black', fontsize=30, fontweight='bold', y=1.075)
+    ax.set_title(title, color=line_color, fontsize=30, fontweight='bold', y=1.075)
 
-    # ✅ اتجاه الهجوم معرب
+    # ✅ اتجاه الهجوم
     right_arrow = get_display(arabic_reshaper.reshape("اتجاه الهجوم"))
     ax.text(0, -3, right_arrow + " --->", color=col1, fontsize=13, ha='left', va='center')
-
     left_arrow = get_display(arabic_reshaper.reshape("اتجاه الهجوم"))
     ax.text(105, -3, "<--- " + left_arrow, color=col2, fontsize=13, ha='right', va='center')
+
+    
+
+
 
 import numpy as np
 import pandas as pd
@@ -3442,91 +3535,143 @@ def ar_text(txt: str) -> str:
     """تصحيح عرض النص العربي داخل matplotlib."""
     return get_display(arabic_reshaper.reshape(str(txt)))
 
-def draw_pass_sonar(df_match, team_name, selected_jerseys=None, startingXI=None):
+from matplotlib.colors import to_rgba
+import colorsys
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import Wedge
+from matplotlib.colors import to_rgba
+import colorsys
+from mplsoccer import Pitch
+
+# تفتيح/تغميق اللون
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import Wedge
+from matplotlib.colors import to_rgba
+import colorsys
+from mplsoccer import Pitch
+
+def _safe_ar(s):
+    try:
+        return ar_text(s)
+    except Exception:
+        return str(s)
+
+def lighten_color(color, amount=0.45):
+    c = to_rgba(color); h,l,s = colorsys.rgb_to_hls(*c[:3])
+    l = min(1, l + amount * (1 - l))
+    r,g,b = colorsys.hls_to_rgb(h,l,s)
+    return (r,g,b,c[3])
+
+def darken_color(color, amount=0.35):
+    c = to_rgba(color); h,l,s = colorsys.rgb_to_hls(*c[:3])
+    l = max(0, l - amount * l)
+    r,g,b = colorsys.hls_to_rgb(h,l,s)
+    return (r,g,b,c[3])
+
+def draw_pass_sonar(
+    df_match,
+    team_name,
+    base_color="#0099ff",
+    selected_jerseys=None,
+    startingXI=None,
+    n_bins=20,
+    thresholds=(3, 5),
+    show_text_explainer=False
+):
+    # البحث عن عمود رقم القميص
+    jersey_cols = ['jerseyNumber', 'value_Jersey number.x', 'value_Jersey number.y']
+    jersey_col = next((c for c in jersey_cols if c in df_match.columns), None)
+
     # تصفية تمريرات الفريق
     passes = df_match[
-        (df_match['teamName'] == team_name) &
-        (df_match['type'].str.lower() == 'pass')
+        (df_match['teamName'].astype(str).str.strip() == str(team_name).strip()) &
+        (df_match['type'].astype(str).str.lower() == 'pass')
     ].copy()
 
-    # تقصير على تشكيلة/أرقام (اختياري)
     if startingXI:
         passes = passes[passes['name'].isin(startingXI)]
-    if selected_jerseys is not None and 'jerseyNumber' in passes.columns:
-        jn = pd.to_numeric(passes['jerseyNumber'], errors='coerce')
-        passes = passes[jn.isin(pd.to_numeric(pd.Series(selected_jerseys), errors='coerce'))]
+
+    # فلترة بناءً على أرقام القمصان المختارة
+    if selected_jerseys and jersey_col:
+        jn = pd.to_numeric(
+            passes[jersey_col].astype(str).str.replace(r'\.0$', '', regex=True),
+            errors='coerce'
+        )
+        targets = pd.to_numeric(pd.Series(selected_jerseys), errors='coerce')
+        passes = passes[jn.isin(targets.dropna().astype(int))]
 
     if passes.empty:
-        fig, ax = plt.subplots(figsize=(10, 7))
-        ax.text(0.5, 0.5, ar_text(f"لا توجد تمريرات لفريق {team_name}"),
-                ha='center', va='center', fontsize=14)
-        ax.axis('off')
+        fig, ax = plt.subplots(figsize=(13, 8))
+        ax.set_facecolor('#0e1117'); ax.axis('off')
+        ax.text(0.5, 0.5, _safe_ar(f"لا توجد تمريرات لفريق {team_name}"),
+                color='white', ha='center', va='center', fontsize=14)
         return fig
 
-    # التأكد من وجود إحداثيات النهاية
+    # ضمان الإحداثيات
     if 'end_x' not in passes.columns or 'end_y' not in passes.columns:
-        if 'endX' in passes.columns and 'endY' in passes.columns:
+        if {'endX','endY'}.issubset(passes.columns):
             passes['end_x'] = pd.to_numeric(passes['endX'], errors='coerce')
             passes['end_y'] = pd.to_numeric(passes['endY'], errors='coerce')
         else:
-            raise ValueError("لا توجد أعمدة end_x/end_y أو endX/endY في البيانات.")
+            raise ValueError("لا توجد أعمدة end_x/end_y أو endX/endY.")
 
-    # حساب الطول والزاوية
-    passes['length'] = np.sqrt((passes['end_x'] - passes['x'])**2 + (passes['end_y'] - passes['y'])**2)
-    passes['angle']  = np.arctan2(passes['end_y'] - passes['y'], passes['end_x'] - passes['x'])
+    for c in ['x', 'y', 'end_x', 'end_y']:
+        passes[c] = pd.to_numeric(passes[c], errors='coerce')
+    passes = passes.dropna(subset=['x', 'y', 'end_x', 'end_y'])
+
+    # الطول والزاوية
+    passes['length'] = np.hypot(passes['end_x'] - passes['x'], passes['end_y'] - passes['y'])
+    passes['angle'] = np.arctan2(passes['end_y'] - passes['y'], passes['end_x'] - passes['x'])
 
     # تقسيم الزوايا
-    n_bins = 20
-    passes['angle_bin'] = pd.cut(
-        passes['angle'],
-        bins=np.linspace(-np.pi, np.pi, n_bins+1),
-        labels=False,
-        include_lowest=True
-    )
+    bins = np.linspace(-np.pi, np.pi, n_bins + 1)
+    passes['angle_bin'] = pd.cut(passes['angle'], bins=bins, labels=False, include_lowest=True)
 
     # تجميع البيانات
-    sonar_df = passes.groupby(['name','angle_bin'], as_index=False).agg(length=('length','mean'))
-    pass_amt = passes.groupby(['name','angle_bin']).size().to_frame('amount').reset_index()
-    sonar_df = sonar_df.merge(pass_amt, on=['name','angle_bin'], how='left')
-
-    # متوسط مواقع اللاعبين
-    average_location = passes.groupby('name', as_index=False).agg(x=('x','mean'), y=('y','mean'))
-    sonar_df = sonar_df.merge(average_location, on='name', how='left')
+    sonar_df = passes.groupby(['name', 'angle_bin'], as_index=False).agg(
+        length=('length', 'mean'),
+        amount=('length', 'size')
+    )
+    avg_pos = passes.groupby('name', as_index=False).agg(x=('x', 'mean'), y=('y', 'mean'))
+    sonar_df = sonar_df.merge(avg_pos, on='name', how='left')
 
     # رسم الملعب
     pitch = Pitch(pitch_type='uefa', pitch_color='#0e1117', line_color='#c7d5cc')
     fig, ax = pitch.draw(figsize=(13, 8))
     fig.set_facecolor('#0e1117')
 
-    # العنوان + وصف موجز
-    ax.set_title(ar_text(f"📊 خريطة سونار التمريرات — {team_name}"), color='white', fontsize=20, pad=20)
-    ax.text(60, -5, ar_text("🔍 كل قطاع يمثل اتجاه وعدد التمريرات.\nاللون يعكس كثافة التمرير."),
-            color='white', fontsize=15, ha='center')
+    ax.set_title(_safe_ar(f"خريطة سونار التمريرات — {team_name}"),
+                 color='white', fontsize=20, pad=20)
+    ax.text(60, -5, _safe_ar("كل قطاع يمثل اتجاه وعدد التمريرات.\nاللون يعكس كثافة التمرير."),
+            color='white', fontsize=11, ha='center')
 
-    # الألوان حسب عدد التمريرات
-    cmap_levels = [
-        (0,  "gold",       ar_text("قليل")),
-        (3,  "darkorange", ar_text("متوسط")),
-        (5,  "#9f1b1e",    ar_text("كثير"))
-    ]
+    # تدرج ألوان الفريق
+    low_c = lighten_color(base_color, 0.45)
+    mid_c = to_rgba(base_color)
+    high_c = darken_color(base_color, 0.35)
 
-    # الرسم لكل لاعب
-    for player in sonar_df['name'].unique():
-        pdf = sonar_df[sonar_df['name'] == player]
-        px, py = pdf['x'].iloc[0], pdf['y'].iloc[0]
+    # رسم القطاعات
+    for player, pdf in sonar_df.groupby('name'):
+        px, py = float(pdf['x'].iloc[0]), float(pdf['y'].iloc[0])
         for _, r in pdf.iterrows():
             if pd.isna(r['angle_bin']):
                 continue
-            angle_center = -np.pi + (r['angle_bin'] + 0.5) * (2*np.pi/n_bins)
-            theta1 = np.degrees(angle_center - (np.pi/n_bins))
-            theta2 = np.degrees(angle_center + (np.pi/n_bins))
-            amt = r['amount']
-            if amt < 3:
-                color = "gold"
-            elif amt < 5:
-                color = "darkorange"
+            angle_center = -np.pi + (r['angle_bin'] + 0.5) * (2 * np.pi / n_bins)
+            theta1 = np.degrees(angle_center - (np.pi / n_bins))
+            theta2 = np.degrees(angle_center + (np.pi / n_bins))
+
+            amt = int(r['amount'])
+            if amt < thresholds[0]:
+                color = low_c
+            elif amt < thresholds[1]:
+                color = mid_c
             else:
-                color = "#9f1b1e"
+                color = high_c
 
             wedge = Wedge(
                 center=(px, py),
@@ -3536,20 +3681,25 @@ def draw_pass_sonar(df_match, team_name, selected_jerseys=None, startingXI=None)
             )
             ax.add_patch(wedge)
 
-        # اسم اللاعب (يُترك كما هو إنجليزي/لاتيني)
         ax.text(px, py, str(player), ha='center', va='center', fontsize=8, color='white')
 
-    # شريط تفسيري للألوان
-    legend_patches = [plt.Line2D([0], [0], color=c, lw=6, label=lbl) for _, c, lbl in cmap_levels]
-    ax.legend(
-        handles=legend_patches,
-        title=ar_text("عدد التمريرات"),
-        title_fontsize=10,
-        fontsize=9,
-        loc='upper right'
-    )
+    # وسيلة الإيضاح
+    legend_patches = [
+        plt.Line2D([0], [0], color=low_c, lw=6, label=_safe_ar(f"قليل (<{thresholds[0]})")),
+        plt.Line2D([0], [0], color=mid_c, lw=6, label=_safe_ar(f"متوسط ({thresholds[0]}–{thresholds[1]})")),
+        plt.Line2D([0], [0], color=high_c, lw=6, label=_safe_ar(f"كثير (>{thresholds[1]})")),
+    ]
+    ax.legend(handles=legend_patches, title=_safe_ar("عدد التمريرات"),
+              title_fontsize=10, fontsize=9, loc='upper right')
+
+    if show_text_explainer:
+        ax.text(60, -10,
+                _safe_ar("✅ الأخضر الفاتح = تمريرات قليلة (<{a})\n✅ الأخضر المتوسط = تمريرات متوسطة ({a}–{b})\n✅ الأخضر الداكن = تمريرات كثيرة (>{b})"
+                         .format(a=thresholds[0], b=thresholds[1])),
+                color='white', fontsize=10, ha='center', va='top')
 
     return fig
+
 
 
 #st.write(sorted(df_match.columns.tolist()))
@@ -4004,6 +4154,370 @@ def plot_team_sequences_grid(df_period, team_name, team_color,
 
           
 # ✅ دالة تعريب النصوص
+# ========= 🇦🇪 أدوات العربية =========
+import arabic_reshaper
+from bidi.algorithm import get_display
+def ar_text(txt: str) -> str:
+    return get_display(arabic_reshaper.reshape(str(txt)))
+
+# ========= 🧮 مقاييس جاهزة (آمنة) =========
+# كل مقياس = دالة تستقبل DataFrame مصفّى على لاعب وتعيد رقمًا
+import numpy as np
+import pandas as pd
+
+def _safe_count(d, col, value=None, contains=None):
+    if col not in d.columns:
+        return 0.0
+    s = d[col].astype(str).str.lower()
+    if value is not None:
+        return (s == str(value).lower()).sum()
+    if contains is not None:
+        return s.str.contains(contains, regex=True).sum()
+    # لو عمود عددي ونبغى مجموع قيمه
+    return pd.to_numeric(d[col], errors="coerce").fillna(0).sum()
+
+# Helpers آمنة للأعمدة الرقمية التي قد تكون غير موجودة
+def _num_series(d: pd.DataFrame, key: str) -> pd.Series:
+    """ترجع Series رقمية للعمود إن وُجد، وإلا Series فاضية (لتجنّب fillna على int)."""
+    return pd.to_numeric(d[key], errors='coerce') if key in d.columns else pd.Series([], dtype='float64')
+
+def _safe_sum_numeric(d: pd.DataFrame, key: str) -> float:
+    """مجموع آمن لعمود رقمي (أو 0 إن لم يوجد)."""
+    s = _num_series(d, key)
+    if s.empty:
+        return 0.0
+    return float(s.fillna(0).replace([np.inf, -np.inf], 0).sum())
+
+# ===== المقاييس =====
+def _shots(d):          return _safe_count(d, 'type', value='shot') + _safe_count(d, 'type', value='savedshot') + _safe_count(d, 'type', value='missedshots') + _safe_count(d, 'type', value='shotonpost')
+def _goals(d):          return _safe_count(d, 'type', value='goal')
+def _passes(d):         return _safe_count(d, 'type', value='pass')
+def _pass_success(d):   return _safe_count(d, 'outcomeType', value='successful') if 'outcomeType' in d.columns else 0.0
+def _key_pass(d):       return _safe_count(d, 'type', value='keypass') if 'type' in d.columns else 0.0
+
+# <-- تم التصحيح هنا
+def _xa(d):             return _safe_sum_numeric(d, 'xA')
+def _xt(d):             return _safe_sum_numeric(d, 'xT')
+
+def _dribbles_won(d):   return _safe_count(d, 'outcomeType', value='won') if 'duelType' in d.columns or 'outcomeType' in d.columns else 0.0
+
+# خذ بالك: ممكن عمود type_value_Interception ما يكون موجود
+def _interceptions(d):  return _safe_count(d, 'type', value='interception') + ( _safe_sum_numeric(d, 'type_value_Interception') if 'type_value_Interception' in d.columns else 0.0 )
+
+def _tackles(d):        return _safe_count(d, 'type', value='tackle') + ( _safe_sum_numeric(d, 'type_value_Tackle') if 'type_value_Tackle' in d.columns else 0.0 )
+
+def _crosses(d):
+    if 'type_value_Cross' in d.columns:
+        return _safe_sum_numeric(d, 'type_value_Cross')
+    return _safe_count(d, 'subType', contains='cross|عرضي|عرضية')
+
+def _prog_passes(d):
+    if not {'x','y'}.issubset(d.columns) or not ({'end_x','end_y'}.issubset(d.columns) or {'endX','endY'}.issubset(d.columns)):
+        return 0.0
+    ex = pd.to_numeric(d.get('end_x', d.get('endX')), errors='coerce')
+    ey = pd.to_numeric(d.get('end_y', d.get('endY')), errors='coerce')
+    x  = pd.to_numeric(d.get('x'), errors='coerce')
+    y  = pd.to_numeric(d.get('y'), errors='coerce')
+    is_pass = d['type'].astype(str).str.lower().eq('pass')
+    return ((is_pass) & ((ex - x) >= 10)).sum()
+
+def _prog_carries(d):
+    if not {'x','y','type'}.issubset(d.columns): return 0.0
+    is_carry = d['type'].astype(str).str.lower().eq('carry')
+    ex = pd.to_numeric(d.get('end_x', d.get('endX')), errors='coerce')
+    x  = pd.to_numeric(d.get('x'), errors='coerce')
+    return ((is_carry) & ((ex - x) >= 8)).sum()
+
+def _box_receives(d):
+    ex = pd.to_numeric(d.get('end_x', d.get('endX')), errors='coerce')
+    ey = pd.to_numeric(d.get('end_y', d.get('endY')), errors='coerce')
+    if ex.isna().all():
+        return 0.0
+    return ((ex > 88) & (ey.between(14, 54))).sum()
+
+def _box_passes(d):
+    if 'type' not in d.columns: return 0.0
+    ex = pd.to_numeric(d.get('end_x', d.get('endX')), errors='coerce')
+    ey = pd.to_numeric(d.get('end_y', d.get('endY')), errors='coerce')
+    is_pass = d['type'].astype(str).str.lower().eq('pass')
+    return (is_pass & (ex > 88) & (ey.between(14, 54))).sum()
+# ========= 🛡️ مقاييس دفاعية إضافية (آمنة) =========
+
+def _tackles_won(d):
+    if not {'type','outcomeType'}.issubset(d.columns): return 0.0
+    t = d['type'].astype(str).str.lower().eq('tackle')
+    ok = d['outcomeType'].astype(str).str.lower().eq('successful')
+    return (t & ok).sum()
+
+def _tackles_lost(d):
+    if not {'type','outcomeType'}.issubset(d.columns): return 0.0
+    t = d['type'].astype(str).str.lower().eq('tackle')
+    bad = d['outcomeType'].astype(str).str.lower().eq('unsuccessful')
+    return (t & bad).sum()
+
+def _ball_recoveries(d):
+    # دعم عمود عددي إن وُجد
+    if 'type_value_BallRecovery' in d.columns:
+        return _safe_sum_numeric(d, 'type_value_BallRecovery')
+    return _safe_count(d, 'type', value='ballrecovery')
+
+def _clearances(d):
+    if 'type_value_Clearance' in d.columns:
+        return _safe_sum_numeric(d, 'type_value_Clearance')
+    return _safe_count(d, 'type', value='clearance')
+
+def _blocked_shots(d):
+    # أحيانًا تكون BlockedShot أو ShotBlocked
+    return (_safe_count(d, 'type', value='blockedshot')
+            + _safe_count(d, 'type', value='shotblocked'))
+
+def _blocked_passes(d):
+    if 'type_value_BlockedPass' in d.columns:
+        return _safe_sum_numeric(d, 'type_value_BlockedPass')
+    return _safe_count(d, 'type', value='blockedpass')
+
+def _aerials_won(d):
+    if not {'type','outcomeType'}.issubset(d.columns): return 0.0
+    a = d['type'].astype(str).str.lower().eq('aerial')
+    ok = d['outcomeType'].astype(str).str.lower().eq('successful')
+    return (a & ok).sum()
+
+def _aerials_lost(d):
+    if not {'type','outcomeType'}.issubset(d.columns): return 0.0
+    a = d['type'].astype(str).str.lower().eq('aerial')
+    bad = d['outcomeType'].astype(str).str.lower().eq('unsuccessful')
+    return (a & bad).sum()
+
+def _aerials_total(d):
+    if 'type' not in d.columns: return 0.0
+    return d['type'].astype(str).str.lower().eq('aerial').sum()
+
+def _defensive_duel_won(d):
+    # بعض المنصات تسميها Challenge
+    if not {'type','outcomeType'}.issubset(d.columns): return 0.0
+    ch = d['type'].astype(str).str.lower().eq('challenge')
+    ok = d['outcomeType'].astype(str).str.lower().eq('successful')
+    return (ch & ok).sum()
+
+def _pressures(d):
+    # إذا لم يوجد عمود Pressure نبحث نصيًا
+    if 'type' in d.columns:
+        return d['type'].astype(str).str.lower().eq('pressure').sum()
+    return _safe_count(d, 'action', contains='pressure|ضغط')
+
+def _fouls_committed(d):
+    return (_safe_count(d, 'type', value='foul')
+            + _safe_count(d, 'subType', contains='foul|خطأ'))
+
+def _errors_to_shot_or_goal(d):
+    # يدعم أعمدة رقمية إن وُجدت
+    for col in ['type_value_Error','error_to_shot','error_to_goal']:
+        if col in d.columns:
+            return _safe_sum_numeric(d, col)
+    return _safe_count(d, 'subType', contains='error|خطأ')
+
+def _long_pass_success(d):
+    # تمريرات >30م ناجحة
+    if not {'x'}.issubset(d.columns): return 0.0
+    ex = pd.to_numeric(d.get('end_x', d.get('endX')), errors='coerce')
+    ey = pd.to_numeric(d.get('end_y', d.get('endY')), errors='coerce')
+    x  = pd.to_numeric(d.get('x'), errors='coerce')
+    y  = pd.to_numeric(d.get('y'), errors='coerce')
+    if ex.isna().all() or x.isna().all(): return 0.0
+    length = np.hypot(ex - x, ey - y)
+    is_pass = d['type'].astype(str).str.lower().eq('pass') if 'type' in d.columns else False
+    ok = d.get('outcomeType', '').astype(str).str.lower().eq('successful') if 'outcomeType' in d.columns else True
+    return (is_pass & ok & (length >= 30)).sum()
+
+METRIC_MAP = {
+    # 🟢 المقاييس الهجومية
+    "تمريرات":                 _passes,
+    "تمريرات ناجحة":           _pass_success,
+    "تمريرات مفتاحية":         _key_pass,
+    "الكرات العرضية":          _crosses,
+    "xA صناعة":                _xa,
+    "xT إجمالي":               _xt,
+    "تمريرات تقدمية":          _prog_passes,
+    "حملات تقدمية":            _prog_carries,
+    "مراوغات ناجحة":           _dribbles_won,
+    "تسديدات":                 _shots,
+    "أهداف":                   _goals,
+    "استلامات في منطقة الجزاء": _box_receives,
+    "تمريرات داخل الصندوق":     _box_passes,
+
+    # 🛡️ المقاييس الدفاعية
+    "اعتراضات":                _interceptions,
+    "استخلاص كرات":            _tackles,
+    "افتكاكات ناجحة":          _tackles_won,
+    "افتكاكات غير ناجحة":      _tackles_lost,
+    "استرجاع كرات":            _ball_recoveries,
+    "تشتيت/إبعاد":             _clearances,
+    "اعتراض تسديدة":           _blocked_shots,
+    "اعتراض تمريرة (بلوك)":     _blocked_passes,
+    "الكرات الهوائية (فوز)":    _aerials_won,
+    "الكرات الهوائية (خسارة)":  _aerials_lost,
+    "الكرات الهوائية (إجمالي)": _aerials_total,
+    "التحامات دفاعية ناجحة":    _defensive_duel_won,
+    "ضغط على حامل الكرة":       _pressures,
+    "أخطاء مُرتكبة":            _fouls_committed,
+    "تمريرات طويلة ناجحة":      _long_pass_success,
+}
+
+
+# ========= 🔢 استخراج قيَم لاعب =========
+def compute_player_metrics(df_team: pd.DataFrame, player_name: str, metric_names: list[str]) -> dict:
+    d = df_team[df_team['name'] == player_name].copy()
+    out = {}
+    for m in metric_names:
+        func = METRIC_MAP.get(m)
+        out[m] = float(func(d)) if func else 0.0
+    return out
+
+# ========= 📈 رسم الرادار (عربي) =========
+import matplotlib.pyplot as plt
+def plot_radar_ar(p1_vals: dict, p2_vals: dict, player1: str, player2: str,
+                  normalize: str = "pair", team_df: pd.DataFrame | None = None,
+                  title: str = "مقارنة لاعبين"):
+
+    labels = list(p1_vals.keys())
+    v1 = np.array([p1_vals[l] for l in labels], dtype=float)
+    v2 = np.array([p2_vals[l] for l in labels], dtype=float)
+
+    # تطبيع (pair أو team أو none)
+    if normalize in ("pair", "team"):
+        mins, maxs = [], []
+        for m in labels:
+            if normalize == "pair":
+                arr = np.array([p1_vals[m], p2_vals[m]], dtype=float)
+            else:
+                # كل لاعبي نفس الفريق
+                arr = []
+                for pl in team_df['name'].dropna().unique():
+                    arr.append(METRIC_MAP[m](team_df[team_df['name'] == pl]))
+                arr = np.array(arr, dtype=float) if len(arr) else np.array([0,1], dtype=float)
+            mins.append(arr.min())
+            maxs.append(arr.max() if arr.max() > arr.min() else arr.min()+1e-9)
+        mins = np.array(mins); maxs = np.array(maxs)
+        v1 = (v1 - mins) / (maxs - mins)
+        v2 = (v2 - mins) / (maxs - mins)
+
+    # إغلاق الدائرة
+    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
+    angles += angles[:1]
+    v1 = np.concatenate([v1, [v1[0]]])
+    v2 = np.concatenate([v2, [v2[0]]])
+
+    fig = plt.figure(figsize=(7.5, 7.5))
+    ax = plt.subplot(111, polar=True)
+    ax.set_facecolor("#0e1117")
+    fig.patch.set_facecolor("#0e1117")
+
+    # محاور وعناوين
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.set_rlabel_position(0)
+    ax.tick_params(colors="white")
+    ax.spines["polar"].set_color("#c7d5cc")
+    ax.set_title(ar_text(title), color="white", pad=20, fontsize=16, fontweight="bold")
+
+    # تسميات المحاور بالعربي (مع تصحيح اتجاه)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels([ar_text(t) for t in labels], color="white", fontsize=11)
+
+    # رسومات
+    ax.plot(angles, v1, linewidth=2, label=player1)
+    ax.fill(angles, v1, alpha=0.25)
+    ax.plot(angles, v2, linewidth=2, label=player2)
+    ax.fill(angles, v2, alpha=0.25)
+
+    lg = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.15), facecolor="#0e1117", labelcolor="white")
+    for txt in lg.get_texts(): txt.set_color("white")
+    return fig
+
+# ========= 🛰️ دالة عليا: رادار مقارنة كما هي =========
+def draw_players_radar(df_match, team_name, p1, p2, metrics, normalize="pair"):
+    # تحضير إطار بيانات الفريق
+    team_df = df_match[df_match['teamName'] == team_name].copy()
+    team_df['name'] = team_df['name'].astype(str)
+
+    # احسب القيم الخام للاعبين
+    p1_vals = compute_player_metrics(team_df, p1, metrics)
+    p2_vals = compute_player_metrics(team_df, p2, metrics)
+
+    # دالة مساعدة تبني Series آمنة لكل مقياس من جميع لاعبي الفريق
+    def team_series_for_metric(metric):
+        players = team_df['name'].dropna().unique().tolist()
+        vals = []
+        for pl in players:
+            v = compute_player_metrics(team_df, pl, [metric]).get(metric, 0.0)
+            # ضمان رقم float
+            try:
+                v = float(v)
+            except:
+                v = 0.0
+            vals.append(v)
+        s = pd.Series(vals, index=players, dtype='float64')
+        s = s.fillna(0.0).replace([np.inf, -np.inf], 0.0)
+        return s
+
+    # طَبّع القيم حسب الاختيار
+    p1_norm, p2_norm = [], []
+    for m in metrics:
+        v1 = float(p1_vals.get(m, 0.0) or 0.0)
+        v2 = float(p2_vals.get(m, 0.0) or 0.0)
+
+        if normalize == "team":
+            s = team_series_for_metric(m)
+            max_v = float(s.max()) if len(s) else 0.0
+            if max_v > 0:
+                p1_norm.append(v1 / max_v)
+                p2_norm.append(v2 / max_v)
+            else:
+                p1_norm.append(0.0); p2_norm.append(0.0)
+
+        elif normalize == "pair":
+            denom = max(v1, v2)
+            if denom > 0:
+                p1_norm.append(v1 / denom)
+                p2_norm.append(v2 / denom)
+            else:
+                p1_norm.append(0.0); p2_norm.append(0.0)
+
+        else:  # "none"
+            # مقياس مباشر (قد يختلف كبيراً بين المقاييس)
+            p1_norm.append(v1)
+            p2_norm.append(v2)
+
+    # ——— رسم الرادار ———
+    # تجهيز الزوايا
+    labels = metrics
+    N = len(labels)
+    angles = np.linspace(0, 2*np.pi, N, endpoint=False).tolist()
+    p1_plot = p1_norm + [p1_norm[0]]
+    p2_plot = p2_norm + [p2_norm[0]]
+    angles_plot = angles + [angles[0]]
+
+    fig = plt.figure(figsize=(7, 7))
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+
+    ax.set_thetagrids(np.degrees(angles), labels, fontsize=10)
+
+    # حد تلقائي للمحور عند التطبيع
+    if normalize in ("team", "pair"):
+        ax.set_ylim(0, 1)
+
+    ax.plot(angles_plot, p1_plot, linewidth=2, linestyle='-', label=p1)
+    ax.fill(angles_plot, p1_plot, alpha=0.20)
+    ax.plot(angles_plot, p2_plot, linewidth=2, linestyle='-', label=p2)
+    ax.fill(angles_plot, p2_plot, alpha=0.20)
+
+    ax.grid(True, linestyle='--', alpha=0.4)
+    ax.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1))
+    title_txt = f"رادار مقارنة لاعبين — {team_name}"
+    ax.set_title(title_txt, fontsize=13, pad=20)
+    return fig
 
 from highlight_text import ax_text 
     # ✅ اختيار نوع التحليل العام
@@ -4345,7 +4859,7 @@ if analysis_type == "تحليل الفريق":
             "KMeans",
             "خريطة الكثافة",
             "xT لأفضل اللاعبين",
-            "📡 Pass Sonar"
+            "Pass Sonar"
         ]
     )
 
@@ -4356,14 +4870,20 @@ if analysis_type == "تحليل الفريق":
     )
     opponent_team = hteam if selected_team_analysis == ateam else ateam
 
-    # ✅ اختيار الألوان الموحدة لكل التحليلات
-    matrix_color_low = st.color_picker("🔵 لون مصفوفة التمريرات (قيمة منخفضة)", '#b5ffe1')
-    matrix_color_high = st.color_picker("🔴 لون مصفوفة التمريرات (قيمة مرتفعة)", '#ff8fab')
-    line_color = st.color_picker("⚫ لون خطوط التمرير العادية", '#808080')
-    highlight_color = st.color_picker("🟡 لون خطوط التمرير المميزة", '#ff0000')
-    node_edge_color = st.color_picker("🟢 لون حواف دوائر اللاعبين", '#00ccff')
+    # 🎨 ألوان أساسية للفريقين
+    home_color = st.color_picker("🎨 لون الفريق المستضيف", '#0099ff', key="home_color")
+    away_color = st.color_picker("🎨 لون الفريق الضيف", '#ff4d4d', key="away_color")
 
-    # ✅ تحليل شبكة التمريرات
+    # ✅ ألوان عامة
+    matrix_color_low  = st.color_picker("🔵 لون مصفوفة التمريرات (قيمة منخفضة)", '#b5ffe1')
+    matrix_color_high = st.color_picker("🔴 لون مصفوفة التمريرات (قيمة مرتفعة)", '#ff8fab')
+    line_color        = st.color_picker("⚫ لون خطوط التمرير العادية", '#808080')
+    highlight_color   = st.color_picker("🟡 لون خطوط التمرير المميزة", '#ff0000')
+    node_edge_color   = st.color_picker("🟢 لون حواف دوائر اللاعبين", '#00ccff')
+
+    # =========================
+    # ✅ شبكة التمريرات
+    # =========================
     if team_analysis_type == "شبكة التمريرات":
         try:
             fig_net, ai_net_comment = draw_static_passing_network(
@@ -4375,12 +4895,15 @@ if analysis_type == "تحليل الفريق":
                 highlight_color=highlight_color,
                 node_edge_color=node_edge_color
             )
-            st.pyplot(fig_net)
-            st.markdown(ai_net_comment)
+            st.pyplot(fig_net, use_container_width=True)
+            if ai_net_comment:
+                st.markdown(ai_net_comment)
         except Exception as e:
             st.error(f"❌ خطأ في رسم شبكة التمريرات: {e}")
 
-    # ✅ تحليل مصفوفة التمريرات
+    # =========================
+    # ✅ مصفوفة التمريرات
+    # =========================
     elif team_analysis_type == "مصفوفة التمريرات":
         try:
             fig_matrix, ai_matrix_comment = draw_pass_matrix_arabic(
@@ -4389,97 +4912,157 @@ if analysis_type == "تحليل الفريق":
                 color_low=matrix_color_low,
                 color_high=matrix_color_high
             )
-            st.pyplot(fig_matrix)
-            st.markdown(ai_matrix_comment)
+            st.pyplot(fig_matrix, use_container_width=True)
+            if ai_matrix_comment:
+                st.markdown(ai_matrix_comment)
         except Exception as e:
             st.error(f"❌ خطأ في مصفوفة التمريرات: {e}")
 
-    # ✅ تحليل KMeans
+    # =========================
+    # ✅ KMeans
+    # =========================
     elif team_analysis_type == "KMeans":
         try:
             fig_kmeans = draw_kmeans_pass_clusters_single_team(df_match, selected_team_analysis)
-            st.pyplot(fig_kmeans)
-            st.markdown(f"✅ تم تحديد 6 تجمعات لتمريرات فريق {selected_team_analysis}.")
+            st.pyplot(fig_kmeans, use_container_width=True)
+            st.markdown(f"✅ تم تحديد 6 تجمعات لتمريرات فريق **{selected_team_analysis}**.")
         except Exception as e:
             st.error(f"❌ خطأ في KMeans: {e}")
 
+        st.markdown("""
+<div dir="rtl" style="text-align: right;">
+<h3>🎯 ما هو تحليل KMeans في كرة القدم؟</h3>
+<p>تحليل <b>KMeans</b> يُقسّم التمريرات إلى تجمعات بناءً على تشابه المواقع والاتجاهات.</p>
+<h4>🔹 الهدف:</h4>
+<ul>
+<li>تمريرات البناء من الخلف</li>
+<li>تمريرات التقدم عبر العمق</li>
+<li>الكرات العرضية</li>
+<li>التمريرات المنظمة في الوسط أو تحت الضغط</li>
+</ul>
+</div>
+""", unsafe_allow_html=True)
+
+    # =========================
     # ✅ خريطة الكثافة
+    # =========================
     elif team_analysis_type == "خريطة الكثافة":
         start_cmap = st.color_picker("🎨 لون بداية التمريرات", '#1565C0', key="start_cmap")
-        end_cmap = st.color_picker("🎨 لون نهاية التمريرات", '#C62828', key="end_cmap")
+        end_cmap   = st.color_picker("🎨 لون نهاية التمريرات",  '#C62828', key="end_cmap")
         try:
-            fig_density = draw_pass_start_end_density_map(df_match, selected_team_analysis, start_cmap, end_cmap)
-            st.pyplot(fig_density)
+            fig_density = draw_pass_start_end_density_map(
+                df_match, selected_team_analysis, start_cmap, end_cmap
+            )
+            st.pyplot(fig_density, use_container_width=True)
         except Exception as e:
             st.error(f"❌ خطأ في خريطة الكثافة: {e}")
 
+        st.markdown("""
+<div dir="rtl" style="text-align: right;">
+<h4>🔍 في هذه الخريطة (xT):</h4>
+<ul>
+<li>عرض أكثر 6 لاعبين في الفريق من حيث مجموع التهديد المتوقع xT.</li>
+<li>التلوين حسب كثافة اللمسات/التمريرات التي تُشكّل تهديدًا.</li>
+<li>كل خريطة تُبرز مساهمة اللاعب في صناعة الخطورة.</li>
+</ul>
+</div>
+""", unsafe_allow_html=True)
+
+    # =========================
     # ✅ xT لأفضل اللاعبين
+    # =========================
     elif team_analysis_type == "xT لأفضل اللاعبين":
         xt_color = st.color_picker("🎨 لون xT", '#0099ff', key="xt_color")
         try:
-            fig_xt = draw_xt_heatmaps_top_players(df_match, selected_team_analysis, base_color=xt_color)
-            st.pyplot(fig_xt)
-            st.markdown(""" ... """, unsafe_allow_html=True)  # النص التوضيحي هنا
+            fig_xt = draw_xt_heatmaps_top_players(
+                df_match, selected_team_analysis, base_color=xt_color
+            )
+            st.pyplot(fig_xt, use_container_width=True)
         except Exception as e:
             st.error(f"❌ خطأ في xT: {e}")
 
+        st.markdown("""
+<div dir="rtl" style="text-align: right;">
+<h4>🔍 في هذه الخريطة:</h4>
+<ul>
+<li>أكثر 6 لاعبين من حيث مجموع xT.</li>
+<li>تلوين الكثافة حسب مواقع التهديد.</li>
+<li>إبراز مساهمة كل لاعب في الخطورة الهجومية.</li>
+</ul>
+</div>
+""", unsafe_allow_html=True)
+
+    # =========================
     # ✅ Pass Sonar
-    elif team_analysis_type == "📡 Pass Sonar":
+    # =========================
+    elif team_analysis_type == "Pass Sonar":
         st.markdown("### 📡 Pass Sonar")
 
+        # اختيار الفريق
         team_for_sonar = st.radio("اختر الفريق", [hteam, ateam], horizontal=True)
 
-        # اختيار تشكيلة/أرقام (اختياري)
+        # تحديد اللون بناءً على الفريق
+        base_color = home_color if team_for_sonar == hteam else away_color
+
+        
+        # (اختياري) تحديد التشكيلة
         use_starting = st.checkbox("تحديد تشكيلة يدوياً", value=False)
         startingXI = None
         if use_starting:
-            team_players = sorted(df_match[df_match['teamName'] == team_for_sonar]['name'].dropna().unique().tolist())
+            team_players = sorted(
+                df_match[df_match['teamName'] == team_for_sonar]['name']
+                .dropna().unique().tolist()
+            )
             startingXI = st.multiselect("اختر اللاعبين", team_players)
 
-        use_jerseys = st.checkbox("تحديد أرقام قمصان", value=False)
-        selected_jerseys = None
-        if use_jerseys and 'jerseyNumber' in df_match.columns:
-            pool = (df_match.loc[df_match['teamName'] == team_for_sonar, 'jerseyNumber']
-                            .dropna().astype(str).unique().tolist())
-            jerseys_str = st.multiselect("🎽 أرقام القمصان", sorted(pool))
-            selected_jerseys = []
-            for j in jerseys_str:
-                try:
-                    selected_jerseys.append(int(float(j)))
-                except:
-                    selected_jerseys.append(j)
+        # (اختياري) تحديد أرقام قمصان
+        
 
         try:
             fig = draw_pass_sonar(
                 df_match,
                 team_for_sonar,
-                selected_jerseys=selected_jerseys,
-                startingXI=startingXI
-                
+                base_color=base_color,                  # لون الفريق
+               
+                startingXI=startingXI,
+                                      # من الواجهة
+                        # (قليل، متوسط)
+               
             )
             st.pyplot(fig, use_container_width=True)
+
+            # شرح Pass Sonar
+            st.markdown("""
+<div dir="rtl" style="text-align: right;">
+<h3>📡 ما هو سونار التمريرات (Pass Sonar)؟</h3>
+<p>سونار التمريرات يوضّح <b>اتجاه وعدد وكثافة</b> تمريرات كل لاعب عبر قطاعات زاوية.</p>
+<h4>🧭 كيف تقرأ الخريطة؟</h4>
+<ul>
+<li><b>اتجاه القطاع:</b> اتجاه التمريرات (أمام/خلف/يمين/يسار).</li>
+<li><b>طول/مساحة القطاع:</b> كلما زاد الطول كان التكرار أعلى.</li>
+<li><b>اللون:</b> يعبّر عن الكثافة (قليل ← متوسط ← كبير).</li>
+<li><b>مركز الدائرة:</b> يوضح تمركز اللاعب على الملعب.</li>
+</ul>
+<h4>🎯 الفائدة:</h4>
+<ul>
+<li>معرفة اتجاه اللعب السائد لكل لاعب.</li>
+<li>كشف روابط التمرير وممرات التقدم.</li>
+<li>مقارنة أدوار اللاعبين بين الأطراف والعمق.</li>
+</ul>
+<h4>📌 أهميتها:</h4>
+<ul>
+<li>توضح أسلوب لعب اللاعب: هل يمرر أكثر للأمام، للخلف، أو للأطراف؟</li>
+<li>تكشف عن اللاعبين الأكثر مساهمة في تحريك الكرة نحو مناطق معينة.</li>
+<li>تساعد المدربين على فهم أنماط التمرير لكل لاعب وتوجيه التعليمات بناءً على ذلك.</li>
+</ul>
+</div>
+""", unsafe_allow_html=True)
+
         except Exception as e:
             st.error(f"❌ خطأ في رسم Pass Sonar: {e}")
             with st.expander("🪲 Debug"):
                 st.write("columns:", sorted(df_match.columns.tolist()))
                 st.write(df_match.head())
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-       
-
-
-
-
 
 
 
@@ -4506,9 +5089,14 @@ elif analysis_type == "إحصائيات المباراة":
                 st.pyplot(fig)
 
             elif analysis_option == "خريطة التسديدات":
-                fig = draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2)
+                
+                fig = draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2, bg_color, line_color)
                 st.pyplot(fig)
 
+
+
+
+    
             elif analysis_option == "خريطة المرمى":
                 Shotsdf = df_match[df_match['type'].isin(['Goal', 'SavedShot', 'ShotOnPost', 'MissedShots'])].reset_index(drop=True)
                 fig, ax = plt.subplots(figsize=(14, 8))
@@ -4617,7 +5205,9 @@ elif analysis_type == "إحصائيات المباراة":
                 
             elif analysis_option == "مناطق السيطرة (Zone Dominance)":
                 fig, ax = plt.subplots(figsize=(20, 10))
-                plot_congestion(ax, df_match, hteam, ateam, col1, col2)
+            
+                plot_congestion(ax, df_match, hteam, ateam, col1, col2, bg_color, line_color)
+
                 st.pyplot(fig)         
 
 
@@ -4633,7 +5223,7 @@ elif analysis_type == "إحصائيات المباراة":
                                   
                     fig1, axs1 = plt.subplots(4, 3, figsize=(38, 38), facecolor=bg_color)
                     pass_network(axs1[0, 0], hteam, col1, hteam, df_match, bg_color, line_color, ar)
-                    draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2, ax=axs1[0, 1])  # ✅ هنا
+                    draw_shotmap_both_teams(df_match, hteam, ateam, col1, col2, bg_color, line_color, ax=axs1[0, 1])
 
                     pass_network(axs1[0, 2], ateam, col2, hteam, df_match, bg_color, line_color, ar)
                     defensive_heatmap(axs1[1, 0], hteam, col1, df_match, bg_color, line_color)
@@ -4645,6 +5235,7 @@ elif analysis_type == "إحصائيات المباراة":
                     defensive_heatmap(axs1[1, 2], ateam, col2, df_match, bg_color, line_color)
                     draw_progressive_pass_map(axs1[2, 0], hteam, col1, line_color)
                     generate_and_plot_momentum(df_match, hteam, ateam, col1, col2, bg_color, line_color)(axs1[2, 1])
+
                     draw_progressive_pass_map(axs1[2, 2], ateam, col2, line_color)
                        # الحملات التقدمية للفريق المستضيف
                     
@@ -4659,7 +5250,22 @@ elif analysis_type == "إحصائيات المباراة":
                     
                     plt.tight_layout(pad=7.5)
                     
-                    fig_text(0.5, 1.01, f"{league_name} | التقرير الفني - 1", color=line_color, fontsize=28, ha='center', ax=fig1)
+
+                    fig_text(
+                    0.5, 1.03,
+                    league_name, color=line_color, fontsize=28, ha='center', ax=fig1
+)
+                    fig_text(
+                    0.5, 0.99,
+                     "Report - 1", color="#090909", fontsize=30, fontweight="bold", ha='center', ax=fig1
+)
+                    fig_text(
+                    0.5, 0.97, "Data: Opta | Create by: @Turadi_7", 
+                    color="#080808", fontsize=20, ha='center', ax=fig1
+)
+
+
+
 
                     # تقرير 2
                     fig2, axs2 = plt.subplots(4, 3, figsize=(38, 38), facecolor=bg_color)
@@ -4673,9 +5279,35 @@ elif analysis_type == "إحصائيات المباراة":
                     HighTO(axs2[2, 1], df_match, hteam, ateam, col1, col2)
                     Pass_end_zone(axs2[2, 2], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
                     Chance_creating_zone(axs2[3, 0], df_match, hteam, ateam, col=col1, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
-                    plot_congestion(axs2[3, 1], df_match, hteam, ateam, col1, col2)
+
+                    plot_congestion(axs2[3, 1], df_match, hteam, ateam, col1, col2, bg_color, line_color)
+  
                     Chance_creating_zone(axs2[3, 2], df_match, ateam, ateam, col=col2, bg_color=bg_color, line_color=line_color, col1=col1, col2=col2, hteamName=hteam)
-                    fig_text(0.5, 0.95, f"{league_name}  |  التقرير الفني - 2", color=line_color, fontsize=28, ha='center', ax=fig2)
+
+                    # عنوان التقرير الثاني
+                    fig_text(
+                    0.5, 0.98, f"{league_name}", 
+                    color=line_color, fontsize=28, ha='center', ax=fig2
+)
+                    fig_text(
+                    0.5, 0.95, "Report - 2", 
+                    color="#030303", fontsize=30, fontweight="bold", ha='center', ax=fig2
+)
+                    fig_text(
+                    0.5, 0.92, "Data: Opta | Create by: @Turadi_7", 
+                    color="#090909", fontsize=20, ha='center', ax=fig2
+)
+
+
+
+
+
+                    
+
+
+
+
+
 
                 # عرض التقريرين
                 col1_, col2_ = st.columns(2)
@@ -4700,10 +5332,13 @@ elif analysis_type == "تحليل لاعب":
 
     selected_team_player = st.selectbox("🎯 اختر الفريق", [hteam, ateam], key="xt_player_team")
 
-    player_list = df_match[df_match['teamName'] == selected_team_player]['shortName'].dropna().unique().tolist()
+    player_list = (
+        df_match[df_match['teamName'] == selected_team_player]['shortName']
+        .dropna().unique().tolist()
+    )
     selected_player = st.selectbox("👟 اختر اللاعب", sorted(player_list), key="xt_selected_player")
 
-    # ✅ خريطة xT
+    # =============== خريطة xT (تمرير + حمل) ===============
     with st.expander("📈 خريطة xT للتمريرات والحملات", expanded=True):
         xtmap_color = st.color_picker("🎨 لون التمريرات", "#88CCF9", key="xtmap_color")
         try:
@@ -4715,12 +5350,49 @@ elif analysis_type == "تحليل لاعب":
             )
             st.pyplot(fig_xtmap)
             st.markdown(f"✅ تم عرض خريطة xT للاعب {selected_player} من فريق {selected_team_player}.")
-
         except Exception as e:
             st.error(f"❌ خطأ في رسم خريطة xT للاعب: {e}")
 
-    # ✅ الخريطة الحرارية وتمريرات اللاعب
-    with st.expander("🔥 الخريطة الحرارية وتمريرات اللاعب", expanded=False):
+
+        st.markdown("""
+<div dir="rtl" style="text-align: right;">
+<h3>💡 ما هي خريطة xT؟</h3>
+<p>
+تمثل هذه الخريطة التهديد المتوقع (Expected Threat - xT) الناتج من تمريرات أو حملات اللاعب.<br>
+كل سهم يعكس حركة الكرة من موقع إلى آخر في الملعب، ويُظهر فوقه مقدار التغيير في التهديد الناتج عن هذه الحركة.
+</p>
+
+<h4>🔢 <b>لماذا نستخدم المعادلة:</b></h4>
+<p>
+نحسب التهديد الناتج من التمريرة أو الحملة باستخدام المعادلة:<br>
+<b>xT = xT(النقطة النهائية) - xT(النقطة الابتدائية)</b>
+</p>
+
+<h4>📌 <b>السبب:</b></h4>
+<p>
+هذه المعادلة تقيس "الفرق في الخطورة" بين المكان الذي بدأت فيه الكرة والمكان الذي انتهت إليه.<br>
+فإذا زادت قيمة xT بعد التمريرة أو الحملة، فهذا يعني أن اللاعب <b>اقترب من منطقة أكثر تهديدًا</b> على المرمى.
+</p>
+
+<p>
+🟢 <b>قيمة موجبة:</b> تعني أن الحركة <b>أنتجت تهديدًا</b>.<br>
+🔴 <b>قيمة سالبة:</b> تعني أن اللاعب <b>تراجع أو ابتعد عن مناطق التهديد</b> (غالبًا ما يتم تجاهلها أو إظهارها بلون رمادي).
+</p>
+
+<p>
+🎯 تساعد هذه الخريطة المدربين والمحللين على تحديد الأماكن التي ينجح فيها اللاعب في <b>زيادة التهديد على الخصم</b>.
+</p>
+</div>
+""", unsafe_allow_html=True)
+
+
+
+
+
+
+
+    # =============== الخريطة الحرارية وتمريرات اللاعب ===============
+    with st.expander(" الخريطة الحرارية وتمريرات اللاعب", expanded=False):
         try:
             from scipy.ndimage import gaussian_filter
 
@@ -4788,6 +5460,173 @@ elif analysis_type == "تحليل لاعب":
         except Exception as e:
             st.error(f"❌ خطأ أثناء عرض الخريطة الحرارية أو التمريرات: {e}")
 
+    # =========================
+    #  🛰️ رادار مقارنة لاعبين — SAVEN style
+    # =========================
+    # دعم نص عربي مضبوط للرسم
+    try:
+        from bidi.algorithm import get_display
+        import arabic_reshaper
+        def ar_text(t): return get_display(arabic_reshaper.reshape(str(t)))
+    except Exception:
+        def ar_text(t): return str(t)
+
+    # ——— دوال المقاييس (يفترض METRIC_MAP موجود عندك) ———
+    def compute_player_metrics(df_team: pd.DataFrame, player_name: str, metric_names: list[str]) -> dict:
+        d = df_team[df_team['name'] == player_name].copy()
+        out = {}
+        for m in metric_names:
+            func = METRIC_MAP.get(m)
+            out[m] = float(func(d)) if func else 0.0
+        return out
+
+    def _series_for_metric_both_teams(df_both, metric):
+        """سلسلة قيم لكل لاعب لدى الفريقين لاستخدامها في تطبيع 'teams'."""
+        players = df_both['name'].dropna().unique().tolist()
+        vals = []
+        for pl in players:
+            v = compute_player_metrics(df_both, pl, [metric]).get(metric, 0.0)
+            try: vals.append(float(v))
+            except: vals.append(0.0)
+        s = pd.Series(vals, index=players, dtype='float64')
+        s = s.fillna(0.0).replace([np.inf, -np.inf], 0.0)
+        return s
+
+    def draw_players_radar_saven(df_match, p1, p2, metrics, normalize="pair",
+                                 title=None, footer_label="SAVEN",
+                                 df_both_for_norm=None):
+        # قيم خام (من كامل df_match حتى لا تُصفَّر قيم لاعب الضيف)
+        p1_vals = compute_player_metrics(df_match, p1, metrics)
+        p2_vals = compute_player_metrics(df_match, p2, metrics)
+
+        # تطبيع
+        p1_norm, p2_norm = [], []
+        for m in metrics:
+            v1 = float(p1_vals.get(m, 0.0) or 0.0)
+            v2 = float(p2_vals.get(m, 0.0) or 0.0)
+
+            if normalize == "teams":
+                s = _series_for_metric_both_teams(df_both_for_norm, m) if df_both_for_norm is not None else pd.Series([v1, v2])
+                mx = float(s.max()) if len(s) else 0.0
+                if mx > 0:
+                    p1_norm.append(v1 / mx); p2_norm.append(v2 / mx)
+                else:
+                    p1_norm += [0.0]; p2_norm += [0.0]
+            elif normalize == "pair":
+                mx = max(v1, v2)
+                if mx > 0:
+                    p1_norm.append(v1 / mx); p2_norm.append(v2 / mx)
+                else:
+                    p1_norm += [0.0]; p2_norm += [0.0]
+            else:  # none
+                p1_norm.append(v1); p2_norm.append(v2)
+
+        # إعداد الرادار
+        labels = [ar_text(l) for l in metrics]
+        N = len(labels)
+        angles = np.linspace(0, 2*np.pi, N, endpoint=False).tolist()
+        angles_plot = angles + [angles[0]]
+        p1_plot = p1_norm + [p1_norm[0]]
+        p2_plot = p2_norm + [p2_norm[0]]
+        # ألوان وهوية
+        bg_top = (9/255, 30/255, 22/255)
+        bg_bottom = (3/255, 16/255, 12/255)
+        ring_color = (1,1,1,0.08)
+        grid_color = (1,1,1,0.10)
+        lbl_color  = (1,1,1,0.90)
+        color_p1 = (0.95, 0.95, 0.95, 1.0)
+        fill_p1  = (0.95, 0.95, 0.95, 0.20)
+        color_p2 = (0.98, 0.77, 0.06, 1.0)
+        fill_p2  = (0.98, 0.77, 0.06, 0.20)
+        
+        fig = plt.figure(figsize=(9.5, 9.5), dpi=160)
+        # خلفية متدرجة
+        ax_bg = fig.add_axes([0,0,1,1])
+        grad = np.linspace(0,1,512).reshape(-1,1)
+        cmap = plt.matplotlib.colors.LinearSegmentedColormap.from_list("", [bg_bottom, bg_top])
+        ax_bg.imshow(np.hstack([grad]*3), extent=[0,1,0,1], origin='lower', cmap=cmap)
+        ax_bg.axis("off")
+
+        # عنوان علوي
+        main_title = title or f"Comparison"
+        fig.text(0.05, 0.94, ar_text(main_title), color="white", fontsize=20, fontweight="bold")
+
+        # لوحة الرادار
+        ax = fig.add_axes([0.06, 0.20, 0.88, 0.68], polar=True)
+        ax.set_theta_offset(np.pi/2)
+        ax.set_theta_direction(-1)
+        ax.set_facecolor((0,0,0,0))
+
+        # حلقات
+        if normalize in ("pair","teams"):
+            rmax = 1.0
+        else:
+            rmax = max(1.0, float(max(p1_plot + p2_plot)))
+        ax.set_ylim(0, rmax)
+        for r in np.linspace(ax.get_rmin(), ax.get_rmax(), 6)[1:]:
+            ax.plot(np.linspace(0,2*np.pi,360), [r]*360, color=ring_color, lw=1)
+
+        # شبكة/تسميات
+        ax.set_thetagrids(np.degrees(angles), labels)
+        for spine in ax.spines.values():
+            spine.set_color(grid_color)
+        ax.tick_params(colors=lbl_color, labelsize=15)
+        ax.tick_params(axis='x', pad=15, colors=lbl_color, labelsize=12)  # ← عدّل pad (مثلاً 10–18) حسب ما يناسبك
+
+        ax.grid(color=grid_color, linestyle='-', lw=1, alpha=0.25)
+
+        
 
 
+        # رسم اللاعبَين
+        ax.plot(angles_plot, p1_plot, color=color_p1, lw=2.4)
+        ax.fill(angles_plot, p1_plot, color=fill_p1)
+        ax.plot(angles_plot, p2_plot, color=color_p2, lw=2.4)
+        ax.fill(angles_plot, p2_plot, color=fill_p2)
 
+        # وسيلة إيضاح
+       
+        legend_ax = fig.add_axes([0.04, 0.075, 0.82, 0.10])   # كان 0.92 عرضًا؛ صغّرناه لترك فراغ يمين
+
+        legend_ax.set_facecolor((0,0,0,0)); legend_ax.axis("off")
+        legend_ax.plot([0.08, 0.16], [0.5, 0.5], color=color_p1, lw=6, solid_capstyle='round')
+        legend_ax.text(0.18, 0.5, p1, color="white", va='center', fontsize=13)
+        legend_ax.plot([0.48, 0.56], [0.5, 0.5], color=color_p2, lw=6, solid_capstyle='round')
+        legend_ax.text(0.57, 0.5, p2, color="white", va='center', fontsize=13, ha='left')
+
+        # ختم SAVEN
+        fig.text(0.93, 0.055, footer_label, color="white", fontsize=13, fontweight="bold")
+        return fig
+
+    # ============== دمج واجهة الرادار ==============
+    with st.expander("رادار مقارنة لاعبين", expanded=False):
+        cA, cB = st.columns(2)
+        p_home = cA.selectbox("👤 لاعب المستضيف", 
+                              sorted(df_match[df_match['teamName'] == hteam]['name'].dropna().unique().tolist()),
+                              key="saven_radar_p1")
+        p_away = cB.selectbox("👤 لاعب الضيف", 
+                              sorted(df_match[df_match['teamName'] == ateam]['name'].dropna().unique().tolist()),
+                              key="saven_radar_p2")
+
+        default_metrics = ["تمريرات", "تمريرات ناجحة", "تمريرات تقدمية", "تسديدات", "أهداف", "xA صناعة"]
+        metrics = st.multiselect("📏 المقاييس", list(METRIC_MAP.keys()),
+                                 default=default_metrics, key="saven_radar_metrics")
+
+        
+
+        if st.button("ارسم الرادار", use_container_width=True):
+            try:
+                both_df = df_match[df_match['teamName'].isin([hteam, ateam])].copy()
+                fig = draw_players_radar_saven(
+                    df_match,
+                    p1=p_home, p2=p_away,
+                    metrics=metrics,
+                   
+                    title=f"{p_home} ({hteam})  vs  {p_away} ({ateam})",
+                    footer_label="SAVEN",
+                    df_both_for_norm=both_df
+                )
+                st.pyplot(fig, use_container_width=True)
+                st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
+            except Exception as e:
+                st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
