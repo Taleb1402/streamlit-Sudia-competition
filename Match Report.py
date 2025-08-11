@@ -1381,12 +1381,12 @@ def reset_confirmed():
 # ============================ #
 
 # ✅ تحميل الملف مباشرة من GitHub مع كاش
+
 @st.cache_data(show_spinner=False)
 def load_data(url: str) -> pd.DataFrame:
-    df = pd.read_csv(url)
+    df = pd.read_csv(url, low_memory=False)  # 🔹 تجنب DtypeWarning
     df.columns = df.columns.str.strip()
     return df
-
 url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/main/Saudi%20pro%20leauge.csv"
 try:
     df = load_data(url)
@@ -5534,6 +5534,7 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
 
 
