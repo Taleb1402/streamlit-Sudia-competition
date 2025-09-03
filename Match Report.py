@@ -350,7 +350,7 @@ def load_data(url: str) -> pd.DataFrame:
     df.columns = df.columns.str.strip()
     return df
 
-url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/refs/heads/main/merged_events_week1.csv"
+url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/refs/heads/main/merged_eventing_devtools_latest_2025-09-03_with_competition_week.csv"
 try:
     df = load_data(url)
 except Exception as e:
@@ -6625,3 +6625,4 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
