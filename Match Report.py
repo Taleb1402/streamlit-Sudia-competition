@@ -344,15 +344,24 @@ import pandas as pd
 # ============================ #
 #       تحميل البيانات         #
 # ============================ #
+# ============================ #
+#       تحميل البيانات         #
+# ============================ #
+import streamlit as st
+import pandas as pd
+
 @st.cache_data(show_spinner=False)
 def load_data(url: str) -> pd.DataFrame:
-    df = pd.read_csv(url, low_memory=False)  # 🔹 لتجنب DtypeWarning
+    df = pd.read_csv(url, low_memory=False)  # لتجنب DtypeWarning
     df.columns = df.columns.str.strip()
     return df
 
-url = "https://github.com/Taleb1402/streamlit-Sudia-competition/blob/main/merged_eventing_all_week1.csv"
+# ✅ استبدل رابط blob برابط RAW الصحيح
+url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/main/merged_eventing_all_week1.csv"
+
 try:
     df = load_data(url)
+    st.success(f"تم تحميل البيانات ✅ عدد الصفوف: {len(df):,}")
 except Exception as e:
     st.error(f" حدث خطأ أثناء تحميل البيانات: {e}")
     st.stop()
@@ -6625,5 +6634,6 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
 
