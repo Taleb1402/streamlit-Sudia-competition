@@ -357,8 +357,7 @@ def load_data(url: str) -> pd.DataFrame:
     return df
 
 # ✅ استبدل رابط blob برابط RAW الصحيح
-url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/main/merged_eventing_all_week1.csv"
-
+url = "https://raw.githubusercontent.com/Taleb1402/streamlit-Sudia-competition/refs/heads/main/final_merged_with_teams_FIXED_competition.csv"
 try:
     df = load_data(url)
     st.success(f"تم تحميل البيانات ✅ عدد الصفوف: {len(df):,}")
@@ -6634,6 +6633,7 @@ elif analysis_type == "تحليل لاعب":
                 st.caption("القيم تُطبّع حسب اختيارك. اختر «على مستوى لاعبي الفريقين» لتطبيع كل مقياس مقارنةً بأعلى قيمة بين جميع لاعبي الفريقين في المباراة.")
             except Exception as e:
                 st.error(f"حدث خطأ أثناء رسم الرادار: {e}")
+
 
 
 
